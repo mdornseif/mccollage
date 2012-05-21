@@ -14,6 +14,28 @@ To use it check the requirements of [mcedit][]/[pymclevel][1].
 Basically you need numpy und PyYaml.
 
 
+Sizer
+====
+
+Sizer helps you to sort worlds by size which helps selecting files for
+collages. 
+
+    python sizer.py ~/Library/Application\ Support/minecraft/saves/*
+
+This will rename your savegames to something like this. The first number
+represents the number of chunks.
+
+    0164-Mansion
+    0265-x3DoorCNB
+    0081-Oddworld
+    0100-Atlantis
+    0132-Casino Monte Carlo
+    0224-Artwood World_Surv
+    0399-Realm of Vikdal
+    0729-DasGelobteLand
+    0930-Batcave
+
+
 Simple Usage
 ============
 
