@@ -6,44 +6,14 @@ Created on Jul 22, 2011
 
 from contextlib import contextmanager
 from logging import getLogger
+import sys
 import os
 
 log = getLogger(__name__)
-warn, error, info, debug = log.warn, log.error, log.info, log.debug
-
-Entities = "Entities"
-TileEntities = "TileEntities"
-
-Map = "Map"
-Width = "Width"
-Height = "Height"
-Length = "Length"
-Blocks = "Blocks"
-Data = "Data"
-Inventory = 'Inventory'
-
 
 @contextmanager
 def notclosing(f):
     yield f
-
-
-def decompress_first(func):
-    def dec_first(self, *args, **kw):
-        self.decompress()
-        return func(self, *args, **kw)
-
-    dec_first.__doc__ = func.__doc__
-    return dec_first
-
-
-def unpack_first(func):
-    def upk_first(self, *args, **kw):
-        self.unpackChunkData()
-        return func(self, *args, **kw)
-
-    upk_first.__doc__ = func.__doc__
-    return upk_first
 
 
 class PlayerNotFound(Exception):
@@ -72,39 +42,41 @@ def exhaust(_iter):
     return i
 
 
-# we need to decode file paths from environment variables or else we get an error
-# if they are formatted or joined to a unicode string
-import sys
 
-if sys.platform == "win32":
-    #not sure why win32com is needed if the %APPDATA% var is available
+def win32_appdata():
+    # try to use win32 api to get the AppData folder since python doesn't populate os.environ with unicode strings.
 
     try:
         import win32com.client
         objShell = win32com.client.Dispatch("WScript.Shell")
-        appDataDir = objShell.SpecialFolders("AppData")
+        return objShell.SpecialFolders("AppData")
     except Exception, e:
         print "Error while getting AppData folder using WScript.Shell.SpecialFolders: {0!r}".format(e)
         try:
             from win32com.shell import shell, shellcon
-            appDataDir = shell.SHGetPathFromIDListEx(
+            return shell.SHGetPathFromIDListEx(
                 shell.SHGetSpecialFolderLocation(0, shellcon.CSIDL_APPDATA)
             )
         except Exception, e:
             print "Error while getting AppData folder using SHGetSpecialFolderLocation: {0!r}".format(e)
 
-            appDataDir = os.environ['APPDATA'].decode(sys.getfilesystemencoding())
+            return os.environ['APPDATA'].decode(sys.getfilesystemencoding())
 
+if sys.platform == "win32":
+    appDataDir = win32_appdata()
     minecraftDir = os.path.join(appDataDir, u".minecraft")
+    appSupportDir = os.path.join(appDataDir, u"pymclevel")
 
 elif sys.platform == "darwin":
     appDataDir = os.path.expanduser(u"~/Library/Application Support")
-
     minecraftDir = os.path.join(appDataDir, u"minecraft")
-    minecraftDir.decode(sys.getfilesystemencoding())
+    appSupportDir = os.path.expanduser(u"~/Library/Application Support/pymclevel/")
+
 else:
     appDataDir = os.path.expanduser(u"~")
     minecraftDir = os.path.expanduser(u"~/.minecraft")
-
+    appSupportDir = os.path.expanduser(u"~/.pymclevel")
 
 saveFileDir = os.path.join(minecraftDir, u"saves")
+
+

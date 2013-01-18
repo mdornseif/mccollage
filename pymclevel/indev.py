@@ -1,10 +1,8 @@
-'''
+"""
 Created on Jul 22, 2011
 
 @author: Rio
-'''
 
-"""
 Indev levels:
 
 TAG_Compound "MinecraftLevel"
@@ -65,13 +63,11 @@ from entity import TileEntity
 from level import MCLevel
 from logging import getLogger
 from materials import indevMaterials
-from mclevelbase import Blocks, Data, Entities, Height, Length, Map, TileEntities, Width
-from numpy import array, swapaxes, uint8
+from numpy import array, swapaxes
 import nbt
 import os
 
 log = getLogger(__name__)
-warn, error, info, debug = log.warn, log.error, log.info, log.debug
 
 MinecraftLevel = "MinecraftLevel"
 
@@ -111,25 +107,17 @@ class MCIndevLevel(EntityLevel):
         return self.Spawn
 
     def setPlayerPosition(self, pos, player="Ignored"):
-        for x in self.root_tag["Entities"]:
-            if x["id"].value == "LocalPlayer":
-                x["Pos"] = nbt.TAG_List([nbt.TAG_Float(p) for p in pos])
+        self.LocalPlayer["Pos"] = nbt.TAG_List([nbt.TAG_Float(p) for p in pos])
 
     def getPlayerPosition(self, player="Ignored"):
-        for x in self.root_tag["Entities"]:
-            if x["id"].value == "LocalPlayer":
-                return array(map(lambda x: x.value, x["Pos"]))
+        return array(map(lambda x: x.value, self.LocalPlayer["Pos"]))
 
     def setPlayerOrientation(self, yp, player="Ignored"):
-        for x in self.root_tag["Entities"]:
-            if x["id"].value == "LocalPlayer":
-                x["Rotation"] = nbt.TAG_List([nbt.TAG_Float(p) for p in yp])
+        self.LocalPlayer["Rotation"] = nbt.TAG_List([nbt.TAG_Float(p) for p in yp])
 
     def getPlayerOrientation(self, player="Ignored"):
         """ returns (yaw, pitch) """
-        for x in self.root_tag["Entities"]:
-            if x["id"].value == "LocalPlayer":
-                return array(map(lambda x: x.value, x["Rotation"]))
+        return array(map(lambda x: x.value, self.LocalPlayer["Rotation"]))
 
     def setBlockDataAt(self, x, y, z, newdata):
         if x < 0 or y < 0 or z < 0:
@@ -163,26 +151,26 @@ class MCIndevLevel(EntityLevel):
         self.Width = 0
         self.Height = 0
         self.Length = 0
-        self.Blocks = array([], uint8)
-        self.Data = array([], uint8)
+        self.Blocks = array([], "uint8")
+        self.Data = array([], "uint8")
         self.Spawn = (0, 0, 0)
         self.filename = filename
 
         if root_tag:
 
             self.root_tag = root_tag
-            mapTag = root_tag[Map]
-            self.Width = mapTag[Width].value
-            self.Length = mapTag[Length].value
-            self.Height = mapTag[Height].value
+            mapTag = root_tag["Map"]
+            self.Width = mapTag["Width"].value
+            self.Length = mapTag["Length"].value
+            self.Height = mapTag["Height"].value
 
-            mapTag[Blocks].value.shape = (self.Height, self.Length, self.Width)
+            mapTag["Blocks"].value.shape = (self.Height, self.Length, self.Width)
 
-            self.Blocks = swapaxes(mapTag[Blocks].value, 0, 2)
+            self.Blocks = swapaxes(mapTag["Blocks"].value, 0, 2)
 
-            mapTag[Data].value.shape = (self.Height, self.Length, self.Width)
+            mapTag["Data"].value.shape = (self.Height, self.Length, self.Width)
 
-            self.Data = swapaxes(mapTag[Data].value, 0, 2)
+            self.Data = swapaxes(mapTag["Data"].value, 0, 2)
 
             self.BlockLight = self.Data & 0xf
 
@@ -190,9 +178,9 @@ class MCIndevLevel(EntityLevel):
 
             self.Spawn = [mapTag[Spawn][i].value for i in range(3)]
 
-            if not Entities in root_tag:
-                root_tag[Entities] = nbt.TAG_List()
-            self.Entities = root_tag[Entities]
+            if "Entities" not in root_tag:
+                root_tag["Entities"] = nbt.TAG_List()
+            self.Entities = root_tag["Entities"]
 
             # xxx fixup Motion and Pos to match infdev format
             def numbersToDoubles(ent):
@@ -202,9 +190,9 @@ class MCIndevLevel(EntityLevel):
             for ent in self.Entities:
                 numbersToDoubles(ent)
 
-            if not TileEntities in root_tag:
-                root_tag[TileEntities] = nbt.TAG_List()
-            self.TileEntities = root_tag[TileEntities]
+            if "TileEntities" not in root_tag:
+                root_tag["TileEntities"] = nbt.TAG_List()
+            self.TileEntities = root_tag["TileEntities"]
             # xxx fixup TileEntities positions to match infdev format
             for te in self.TileEntities:
                 pos = te["Pos"].value
@@ -213,17 +201,20 @@ class MCIndevLevel(EntityLevel):
 
                 TileEntity.setpos(te, (x, y, z))
 
-            if len(filter(lambda x: x['id'].value == 'LocalPlayer', root_tag[Entities])) == 0:  # omen doesn't make a player entity
-                p = nbt.TAG_Compound()
-                p['id'] = nbt.TAG_String('LocalPlayer')
-                p['Pos'] = nbt.TAG_List([nbt.TAG_Float(0.), nbt.TAG_Float(64.), nbt.TAG_Float(0.)])
-                p['Rotation'] = nbt.TAG_List([nbt.TAG_Float(0.), nbt.TAG_Float(45.)])
 
-                root_tag[Entities].append(p)
-                # self.saveInPlace()
+            localPlayerList = [tag for tag in root_tag["Entities"] if tag['id'].value == 'LocalPlayer']
+            if len(localPlayerList) == 0:  # omen doesn't make a player entity
+                playerTag = nbt.TAG_Compound()
+                playerTag['id'] = nbt.TAG_String('LocalPlayer')
+                playerTag['Pos'] = nbt.TAG_List([nbt.TAG_Float(0.), nbt.TAG_Float(64.), nbt.TAG_Float(0.)])
+                playerTag['Rotation'] = nbt.TAG_List([nbt.TAG_Float(0.), nbt.TAG_Float(45.)])
+                self.LocalPlayer = playerTag
+
+            else:
+                self.LocalPlayer = localPlayerList[0]
 
         else:
-            info(u"Creating new Indev levels is not yet implemented.!")
+            log.info(u"Creating new Indev levels is not yet implemented.!")
             raise ValueError("Can't do that yet")
 #            self.SurroundingGroundHeight = root_tag[Environment][SurroundingGroundHeight].value
 #            self.SurroundingGroundType = root_tag[Environment][SurroundingGroundType].value
@@ -252,7 +243,7 @@ class MCIndevLevel(EntityLevel):
                                8, 9, 10, 11, 12, 13, 14, 15])
 
         torchIndexes = (self.Blocks == self.materials.Torch.ID)
-        info(u"Rotating torches: {0}".format(len(torchIndexes.nonzero()[0])))
+        log.info(u"Rotating torches: {0}".format(len(torchIndexes.nonzero()[0])))
         self.Data[torchIndexes] = torchRotation[self.Data[torchIndexes]]
 
     def decodePos(self, v):
@@ -265,10 +256,10 @@ class MCIndevLevel(EntityLevel):
         return x + (y << b) + (z << (2 * b))
 
     def saveToFile(self, filename=None):
-        if filename == None:
+        if filename is None:
             filename = self.filename
-        if filename == None:
-            warn(u"Attempted to save an unnamed file in place")
+        if filename is None:
+            log.warn(u"Attempted to save an unnamed file in place")
             return  # you fool!
 
         self.Data <<= 4
@@ -277,21 +268,21 @@ class MCIndevLevel(EntityLevel):
         self.Blocks = swapaxes(self.Blocks, 0, 2)
         self.Data = swapaxes(self.Data, 0, 2)
 
-        mapTag = nbt.TAG_Compound(name=Map)
-        mapTag[Width] = nbt.TAG_Short(self.Width)
-        mapTag[Height] = nbt.TAG_Short(self.Height)
-        mapTag[Length] = nbt.TAG_Short(self.Length)
-        mapTag[Blocks] = nbt.TAG_Byte_Array(self.Blocks)
-        mapTag[Data] = nbt.TAG_Byte_Array(self.Data)
+        mapTag = nbt.TAG_Compound()
+        mapTag["Width"] = nbt.TAG_Short(self.Width)
+        mapTag["Height"] = nbt.TAG_Short(self.Height)
+        mapTag["Length"] = nbt.TAG_Short(self.Length)
+        mapTag["Blocks"] = nbt.TAG_Byte_Array(self.Blocks)
+        mapTag["Data"] = nbt.TAG_Byte_Array(self.Data)
 
         self.Blocks = swapaxes(self.Blocks, 0, 2)
         self.Data = swapaxes(self.Data, 0, 2)
 
         mapTag[Spawn] = nbt.TAG_List([nbt.TAG_Short(i) for i in self.Spawn])
 
-        self.root_tag[Map] = mapTag
-        self.root_tag[Map]
+        self.root_tag["Map"] = mapTag
 
+        self.Entities.append(self.LocalPlayer)
         # fix up Entities imported from Alpha worlds
         def numbersToFloats(ent):
             for attr in "Motion", "Pos":
@@ -311,7 +302,7 @@ class MCIndevLevel(EntityLevel):
             pass
 
         try:
-            self.root_tag.saveGzipped(filename)
+            self.root_tag.save(filename)
         except:
             os.rename(filename + ".old", filename)
 
@@ -319,6 +310,8 @@ class MCIndevLevel(EntityLevel):
             os.remove(filename + ".old")
         except Exception:
             pass
+
+        self.Entities.remove(self.LocalPlayer)
 
         self.BlockLight = self.Data & 0xf
 

@@ -50,7 +50,7 @@ chunkPositions = list(world1.allChunks)
 # allChunks returns an iterator that yields a (xPos, zPos) tuple for each chunk
 xPos, zPos = chunkPositions[0];
 
-# retrieve an InfdevChunk object. this object will load and decompress
+# retrieve an AnvilChunk object. this object will load and decompress
 # the chunk as needed, and remember whether it needs to be saved or relighted
 
 chunk = world1.getChunk(xPos, zPos)
@@ -148,7 +148,7 @@ world.saveInPlace();
 # The getChunkSlices method returns an iterator that returns slices of chunks within the specified range.
 # the slices are returned as tuples of (chunk, slices, point)
 
-# chunk:  The InfdevChunk object we're interested in.
+# chunk:  The AnvilChunk object we're interested in.
 # slices:  A 3-tuple of slice objects that can be used to index chunk's data arrays
 # point:  A 3-tuple of floats representing the relative position of this subslice within the larger slice.
 #
@@ -171,7 +171,7 @@ Copyright 2010 David Rio Vierra
 """
 
 from indev import MCIndevLevel
-from infiniteworld import MCInfdevOldLevel, ZipSchematic
+from infiniteworld import MCInfdevOldLevel
 from java import MCJavaLevel
 from logging import getLogger
 from mclevelbase import saveFileDir
@@ -179,23 +179,21 @@ import nbt
 from numpy import fromstring
 import os
 from pocket import PocketWorld
-from schematic import INVEditChest, MCSchematic
+from schematic import INVEditChest, MCSchematic, ZipSchematic
 import sys
 import traceback
 
 log = getLogger(__name__)
-warn, error, info, debug = log.warn, log.error, log.info, log.debug
-
 
 class LoadingError(RuntimeError):
     pass
 
 
-def fromFile(filename, loadInfinite=True):
+def fromFile(filename, loadInfinite=True, readonly=False):
     ''' The preferred method for loading Minecraft levels of any type.
     pass False to loadInfinite if you'd rather not load infdev levels.
     '''
-    info(u"Identifying " + filename)
+    log.info(u"Identifying " + filename)
 
     if not filename:
         raise IOError("File not found: " + filename)
@@ -203,18 +201,18 @@ def fromFile(filename, loadInfinite=True):
         raise IOError("File not found: " + filename)
 
     if ZipSchematic._isLevel(filename):
-        info("Zipfile found, attempting zipped infinite level")
+        log.info("Zipfile found, attempting zipped infinite level")
         lev = ZipSchematic(filename)
-        info("Detected zipped Infdev level")
+        log.info("Detected zipped Infdev level")
         return lev
 
     if PocketWorld._isLevel(filename):
         return PocketWorld(filename)
 
     if MCInfdevOldLevel._isLevel(filename):
-        info(u"Detected Infdev level.dat")
+        log.info(u"Detected Infdev level.dat")
         if loadInfinite:
-            return MCInfdevOldLevel(filename=filename)
+            return MCInfdevOldLevel(filename=filename, readonly=readonly)
         else:
             raise ValueError("Asked to load {0} which is an infinite level, loadInfinite was False".format(os.path.basename(filename)))
 
@@ -232,7 +230,7 @@ def fromFile(filename, loadInfinite=True):
         raise ValueError("{0} contains only zeroes. This file is damaged beyond repair.")
 
     if MCJavaLevel._isDataLevel(data):
-        info(u"Detected Java-style level")
+        log.info(u"Detected Java-style level")
         lev = MCJavaLevel(filename, data)
         lev.compressed = False
         return lev
@@ -243,7 +241,7 @@ def fromFile(filename, loadInfinite=True):
     try:
         unzippedData = nbt.gunzip(rawdata)
     except Exception, e:
-        info(u"Exception during Gzip operation, assuming {0} uncompressed: {1!r}".format(filename, e))
+        log.info(u"Exception during Gzip operation, assuming {0} uncompressed: {1!r}".format(filename, e))
         if unzippedData is None:
             compressed = False
             unzippedData = rawdata
@@ -251,7 +249,7 @@ def fromFile(filename, loadInfinite=True):
     #data =
     data = unzippedData
     if MCJavaLevel._isDataLevel(data):
-        info(u"Detected compressed Java-style level")
+        log.info(u"Detected compressed Java-style level")
         lev = MCJavaLevel(filename, data)
         lev.compressed = compressed
         return lev
@@ -260,9 +258,9 @@ def fromFile(filename, loadInfinite=True):
         root_tag = nbt.load(buf=data)
 
     except Exception, e:
-        info(u"Error during NBT load: {0!r}".format(e))
-        info(traceback.format_exc())
-        info(u"Fallback: Detected compressed flat block array, yzx ordered ")
+        log.info(u"Error during NBT load: {0!r}".format(e))
+        log.info(traceback.format_exc())
+        log.info(u"Fallback: Detected compressed flat block array, yzx ordered ")
         try:
             lev = MCJavaLevel(filename, data)
             lev.compressed = compressed
@@ -272,14 +270,14 @@ def fromFile(filename, loadInfinite=True):
 
     else:
         if MCIndevLevel._isTagLevel(root_tag):
-            info(u"Detected Indev .mclevel")
+            log.info(u"Detected Indev .mclevel")
             return MCIndevLevel(root_tag, filename)
         if MCSchematic._isTagLevel(root_tag):
-            info(u"Detected Schematic.")
+            log.info(u"Detected Schematic.")
             return MCSchematic(root_tag=root_tag, filename=filename)
 
         if INVEditChest._isTagLevel(root_tag):
-            info(u"Detected INVEdit inventory file")
+            log.info(u"Detected INVEdit inventory file")
             return INVEditChest(root_tag=root_tag, filename=filename)
 
     raise IOError("Cannot detect file type.")

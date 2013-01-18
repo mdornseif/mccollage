@@ -8,12 +8,11 @@ from pprint import pformat
 
 import os
 
-NOTEX = (0xB0, 0xE0)
+NOTEX = (0x90, 0xD0)
 
 import yaml
 
 log = getLogger(__file__)
-debug, info, warn, error, critical = log.debug, log.info, log.warn, log.error, log.critical
 
 
 class Block(object):
@@ -54,7 +53,7 @@ class Block(object):
             r = r[self.blockData]
         return r
 
-
+id_limit = 4096
 class MCMaterials(object):
     defaultColor = (0xc9, 0x77, 0xf0, 0xff)
     defaultBrightness = 0
@@ -68,24 +67,25 @@ class MCMaterials(object):
 
         self.defaultName = defaultName
 
-        self.blockTextures = zeros((256, 16, 6, 2), dtype='uint8')
-        self.blockTextures[:] = self.defaultTexture
-        self.names = [[defaultName] * 16 for i in range(256)]
-        self.aka = [[""] * 16 for i in range(256)]
 
-        self.type = [["NORMAL"] * 16] * 256
+        self.blockTextures = zeros((id_limit, 16, 6, 2), dtype='uint8')
+        self.blockTextures[:] = self.defaultTexture
+        self.names = [[defaultName] * 16 for i in range(id_limit)]
+        self.aka = [[""] * 16 for i in range(id_limit)]
+
+        self.type = [["NORMAL"] * 16] * id_limit
         self.blocksByType = defaultdict(list)
         self.allBlocks = []
         self.blocksByID = {}
 
-        self.lightEmission = zeros(256, dtype='uint8')
+        self.lightEmission = zeros(id_limit, dtype='uint8')
         self.lightEmission[:] = self.defaultBrightness
-        self.lightAbsorption = zeros(256, dtype='uint8')
+        self.lightAbsorption = zeros(id_limit, dtype='uint8')
         self.lightAbsorption[:] = self.defaultOpacity
-        self.flatColors = zeros((256, 16, 4), dtype='uint8')
+        self.flatColors = zeros((id_limit, 16, 4), dtype='uint8')
         self.flatColors[:] = self.defaultColor
 
-        self.idStr = {}
+        self.idStr = [""] * id_limit
 
         self.color = self.flatColors
         self.brightness = self.lightEmission
@@ -154,16 +154,21 @@ class MCMaterials(object):
             import pkg_resources
 
             f = pkg_resources.resource_stream(__name__, filename)
-        except (ImportError, IOError):
+        except (ImportError, IOError), e:
+            print "Cannot get resource_stream for ", filename, e
             root = os.environ.get("PYMCLEVEL_YAML_ROOT", "pymclevel")  # fall back to cwd as last resort
-            f = file(join(root, filename))
+            path = join(root, filename)
+
+            log.exception("Failed to read %s using pkg_resources. Trying %s instead." % (filename, path))
+
+            f = file(path)
         try:
-            info(u"Loading block info from %s", f)
+            log.info(u"Loading block info from %s", f)
             blockyaml = yaml.load(f)
             self.addYamlBlocks(blockyaml)
 
         except Exception, e:
-            warn(u"Exception while loading block info from %s: %s", f, e)
+            log.warn(u"Exception while loading block info from %s: %s", f, e)
             traceback.print_exc()
 
     def addYamlBlocks(self, blockyaml):
@@ -172,9 +177,9 @@ class MCMaterials(object):
             try:
                 self.addYamlBlock(block)
             except Exception, e:
-                warn(u"Exception while parsing block: %s", e)
+                log.warn(u"Exception while parsing block: %s", e)
                 traceback.print_exc()
-                warn(u"Block definition: \n%s", pformat(block))
+                log.warn(u"Block definition: \n%s", pformat(block))
 
     def addYamlBlock(self, kw):
         blockID = kw['id']
@@ -219,8 +224,7 @@ class MCMaterials(object):
             # print datakw
             block = self.addBlock(blockID, val, **datakw)
             block.yaml = datakw
-            if idStr not in self.idStr:
-                self.idStr[idStr] = block
+            self.idStr[blockID] = idStr
 
         tex_direction_data = kw.get('tex_direction_data')
         if tex_direction_data:
@@ -337,7 +341,6 @@ classicMaterials.addYamlBlocksFromFile("classic.yaml")
 
 indevMaterials = MCMaterials(defaultName="Not present in Indev")
 indevMaterials.name = "Indev"
-indevMaterials.addYamlBlocksFromFile("classic.yaml")
 indevMaterials.addYamlBlocksFromFile("indev.yaml")
 
 pocketMaterials = MCMaterials()
@@ -414,7 +417,7 @@ alphaMaterials.BrownWool = alphaMaterials[35, 12]
 alphaMaterials.DarkGreenWool = alphaMaterials[35, 13]
 alphaMaterials.RedWool = alphaMaterials[35, 14]
 alphaMaterials.BlackWool = alphaMaterials[35, 15]
-
+alphaMaterials.Block36 = alphaMaterials[36, 0]
 alphaMaterials.Flower = alphaMaterials[37, 0]
 alphaMaterials.Rose = alphaMaterials[38, 0]
 alphaMaterials.BrownMushroom = alphaMaterials[39, 0]
@@ -640,6 +643,9 @@ pocketMaterials.Grass = pocketMaterials[2, 0]
 pocketMaterials.Dirt = pocketMaterials[3, 0]
 pocketMaterials.Cobblestone = pocketMaterials[4, 0]
 pocketMaterials.WoodPlanks = pocketMaterials[5, 0]
+pocketMaterials.Sapling = pocketMaterials[6, 0]
+pocketMaterials.SpruceSapling = pocketMaterials[6, 1]
+pocketMaterials.BirchSapling = pocketMaterials[6, 2]
 pocketMaterials.Bedrock = pocketMaterials[7, 0]
 pocketMaterials.Wateractive = pocketMaterials[8, 0]
 pocketMaterials.Water = pocketMaterials[9, 0]
@@ -657,8 +663,29 @@ pocketMaterials.Leaves = pocketMaterials[18, 0]
 pocketMaterials.Glass = pocketMaterials[20, 0]
 
 pocketMaterials.LapisLazuliOre = pocketMaterials[21, 0]
+pocketMaterials.LapisLazuliBlock = pocketMaterials[22, 0]
 pocketMaterials.Sandstone = pocketMaterials[24, 0]
-pocketMaterials.BlackWool2 = pocketMaterials[35, 0]
+pocketMaterials.Bed = pocketMaterials[26, 0]
+pocketMaterials.Web = pocketMaterials[30, 0]
+pocketMaterials.UnusedShrub = pocketMaterials[31, 0]
+pocketMaterials.TallGrass = pocketMaterials[31, 1]
+pocketMaterials.Shrub = pocketMaterials[31, 2]
+pocketMaterials.WhiteWool = pocketMaterials[35, 0]
+pocketMaterials.OrangeWool = pocketMaterials[35, 1]
+pocketMaterials.MagentaWool = pocketMaterials[35, 2]
+pocketMaterials.LightBlueWool = pocketMaterials[35, 3]
+pocketMaterials.YellowWool = pocketMaterials[35, 4]
+pocketMaterials.LightGreenWool = pocketMaterials[35, 5]
+pocketMaterials.PinkWool = pocketMaterials[35, 6]
+pocketMaterials.GrayWool = pocketMaterials[35, 7]
+pocketMaterials.LightGrayWool = pocketMaterials[35, 8]
+pocketMaterials.CyanWool = pocketMaterials[35, 9]
+pocketMaterials.PurpleWool = pocketMaterials[35, 10]
+pocketMaterials.BlueWool = pocketMaterials[35, 11]
+pocketMaterials.BrownWool = pocketMaterials[35, 12]
+pocketMaterials.DarkGreenWool = pocketMaterials[35, 13]
+pocketMaterials.RedWool = pocketMaterials[35, 14]
+pocketMaterials.BlackWool = pocketMaterials[35, 15]
 pocketMaterials.Flower = pocketMaterials[37, 0]
 pocketMaterials.Rose = pocketMaterials[38, 0]
 pocketMaterials.BrownMushroom = pocketMaterials[39, 0]
@@ -666,17 +693,32 @@ pocketMaterials.RedMushroom = pocketMaterials[40, 0]
 pocketMaterials.BlockofGold = pocketMaterials[41, 0]
 pocketMaterials.BlockofIron = pocketMaterials[42, 0]
 pocketMaterials.DoubleStoneSlab = pocketMaterials[43, 0]
+pocketMaterials.DoubleSandstoneSlab = pocketMaterials[43, 1]
+pocketMaterials.DoubleWoodenSlab = pocketMaterials[43, 2]
+pocketMaterials.DoubleCobblestoneSlab = pocketMaterials[43, 3]
+pocketMaterials.DoubleBrickSlab = pocketMaterials[43, 4]
 pocketMaterials.StoneSlab = pocketMaterials[44, 0]
+pocketMaterials.SandstoneSlab = pocketMaterials[44, 1]
+pocketMaterials.WoodenSlab = pocketMaterials[44, 2]
+pocketMaterials.CobblestoneSlab = pocketMaterials[44, 3]
+pocketMaterials.BrickSlab = pocketMaterials[44, 4]
 pocketMaterials.Brick = pocketMaterials[45, 0]
 pocketMaterials.TNT = pocketMaterials[46, 0]
+pocketMaterials.Bookshelf = pocketMaterials[47, 0]
+pocketMaterials.MossStone = pocketMaterials[48, 0]
 pocketMaterials.Obsidian = pocketMaterials[49, 0]
 
 pocketMaterials.Torch = pocketMaterials[50, 0]
 pocketMaterials.Fire = pocketMaterials[51, 0]
 pocketMaterials.WoodenStairs = pocketMaterials[53, 0]
+pocketMaterials.Chest = pocketMaterials[54, 0]
 pocketMaterials.DiamondOre = pocketMaterials[56, 0]
 pocketMaterials.BlockofDiamond = pocketMaterials[57, 0]
+pocketMaterials.CraftingTable = pocketMaterials[58, 0]
+pocketMaterials.Crops = pocketMaterials[59, 0]
 pocketMaterials.Farmland = pocketMaterials[60, 0]
+pocketMaterials.Furnace = pocketMaterials[61, 0]
+pocketMaterials.LitFurnace = pocketMaterials[62, 0]
 pocketMaterials.WoodenDoor = pocketMaterials[64, 0]
 pocketMaterials.Ladder = pocketMaterials[65, 0]
 pocketMaterials.StoneStairs = pocketMaterials[67, 0]
@@ -686,35 +728,37 @@ pocketMaterials.RedstoneOreGlowing = pocketMaterials[74, 0]
 pocketMaterials.SnowLayer = pocketMaterials[78, 0]
 pocketMaterials.Ice = pocketMaterials[79, 0]
 
+pocketMaterials.Snow = pocketMaterials[80, 0]
+pocketMaterials.Cactus = pocketMaterials[81, 0]
 pocketMaterials.Clay = pocketMaterials[82, 0]
 pocketMaterials.SugarCane = pocketMaterials[83, 0]
-pocketMaterials.BlackWool = pocketMaterials[101, 0]
-pocketMaterials.RedWool = pocketMaterials[102, 0]
-pocketMaterials.GreenWool = pocketMaterials[103, 0]
-pocketMaterials.BrownWool = pocketMaterials[104, 0]
-pocketMaterials.BlueWool = pocketMaterials[105, 0]
-pocketMaterials.PurpleWool = pocketMaterials[106, 0]
-pocketMaterials.CyanWool = pocketMaterials[107, 0]
-pocketMaterials.LightGrayWool = pocketMaterials[108, 0]
-pocketMaterials.GrayWool = pocketMaterials[109, 0]
-pocketMaterials.PinkWool = pocketMaterials[110, 0]
-pocketMaterials.LimeWool = pocketMaterials[111, 0]
-pocketMaterials.YellowWool = pocketMaterials[112, 0]
-pocketMaterials.LightBlueWool = pocketMaterials[113, 0]
-pocketMaterials.MagentaWool = pocketMaterials[114, 0]
-pocketMaterials.OrangeWool = pocketMaterials[115, 0]
+pocketMaterials.Fence = pocketMaterials[85, 0]
+pocketMaterials.Glowstone = pocketMaterials[89, 0]
+pocketMaterials.InvisibleBedrock = pocketMaterials[95, 0]
+pocketMaterials.Trapdoor = pocketMaterials[96, 0]
+
+pocketMaterials.StoneBricks = pocketMaterials[98, 0]
+pocketMaterials.GlassPane = pocketMaterials[102, 0]
+pocketMaterials.Watermelon = pocketMaterials[103, 0]
+pocketMaterials.MelonStem = pocketMaterials[105, 0]
+pocketMaterials.FenceGate = pocketMaterials[107, 0]
+pocketMaterials.BrickStairs = pocketMaterials[108, 0]
+
+pocketMaterials.GlowingObsidian = pocketMaterials[246, 0]
+pocketMaterials.NetherReactor = pocketMaterials[247, 0]
+pocketMaterials.NetherReactorUsed = pocketMaterials[247, 1]
 
 # print "\n".join(["pocketMaterials.{0} = pocketMaterials[{1},{2}]".format(
 #                      b.name.replace(" ", "").replace("(","").replace(")",""),
 #                      b.ID, b.blockData)
 #                  for b in sorted(mats.pocketMaterials.allBlocks)])
 
-_indices = rollaxis(indices((256, 16)), 0, 3)
+_indices = rollaxis(indices((id_limit, 16)), 0, 3)
 
 
 def _filterTable(filters, unavailable, default=(0, 0)):
-    # a filter table is a 256x16 table of (ID, data) pairs.
-    table = zeros((256, 16, 2), dtype='uint8')
+    # a filter table is a id_limit table of (ID, data) pairs.
+    table = zeros((id_limit, 16, 2), dtype='uint8')
     table[:] = _indices
     for u in unavailable:
         try:
@@ -799,13 +843,13 @@ def conversionFunc(destMats, sourceMats):
         return func
 
     filters, unavailable = guessFilterTable(sourceMats, destMats)
-    debug("")
-    debug("%s %s %s", sourceMats.name, "=>", destMats.name)
+    log.debug("")
+    log.debug("%s %s %s", sourceMats.name, "=>", destMats.name)
     for a, b in [(sourceMats.blockWithID(*a), destMats.blockWithID(*b)) for a, b in filters]:
-        debug("{0:20}: \"{1}\"".format('"' + a.name + '"', b.name))
+        log.debug("{0:20}: \"{1}\"".format('"' + a.name + '"', b.name))
 
-    debug("")
-    debug("Missing blocks: %s", [sourceMats.blockWithID(*a).name for a in unavailable])
+    log.debug("")
+    log.debug("Missing blocks: %s", [sourceMats.blockWithID(*a).name for a in unavailable])
 
     table = _filterTable(filters, unavailable, (35, 0))
     func = filterConversion(table)

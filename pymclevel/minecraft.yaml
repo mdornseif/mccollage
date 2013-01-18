@@ -4,12 +4,12 @@
 # The library we're using apparently only supports YAML 1.1
 # See http://en.wikipedia.org/wiki/YAML or http://yaml.org/spec/1.1/
 #
-### 
+###
 ###
 #
 # Fields marked with * were added when updating this file for MCEdit + pymclevel
 # The field "tex_data" is not used by MCEdit. To describe a block's alternate
-# textures when the block's data value is different, use the "data" field to 
+# textures when the block's data value is different, use the "data" field to
 # define block variants.
 #
 # Fields required by MCEdit: id, name, mapcolor, tex
@@ -51,33 +51,15 @@
 # Brief descriptions of the individual block fields:
 #
 #   id: The numeric ID of the block
-#   
-#   idStr: A String ID of the block.  This is what you will use to
-#          identify the block types in xray.properties, for instance,
-#          to tell X-Ray which resources you're highlighting.  Most
-#          of these are arbitrary and could be changed at will, but
-#          a few are looked for specifically in the X-Ray code, and
-#          so shouldn't be changed.  A complete list of the ones that
-#          shouldn't be changed are:
 #
-#               IRON_BARS (the "solid pane" renderer uses it)
-#               PISTON_HEAD (the piston renderers use it)
-#               PISTON_STICKY_BODY (the piston renderers use it)
-#               BEDROCK (the "bedrock" toggle uses it)
-#               GRASS (the "grass rendering" toggle uses it)
-#               SILVERFISH (the "silverfish highlighting" toggle uses it)
-#               SAPLING (some special data handling is needed)
-#               PORTAL (we generate the texture to use for this one)
-#               ENDER_PORTAL (we generate the texture to use for this one)
-#               FIRE (we generate the texture to use for this one)
-#               WATER (we do extra processing on the texture)
-#               STATIONARY_WATER (we do extra processing on the texture)
-#  
+#   idStr: The block's name in Minecraft's internals. Used to find texture files in
+#          Minecraft 1.5.
+#
 # * data: Defines variants of a block type, depending on the blockData value
-#         for that block. Any field available for a block is also available 
-#         for a data variant. Replaces tex_data. 
+#         for that block. Any field available for a block is also available
+#         for a data variant. Replaces tex_data.
 #         See the entries "Sapling" or "Slab" for examples.
-#         
+#
 #   name: The name that will show up in X-Ray if you're using it
 #         as one of your highlights (unimportant otherwise)
 #
@@ -94,7 +76,7 @@
 #   mapcolor: RGB values for the minimap, 0-255
 #
 #   explored: If set to "true" this block will be checked for in X-Ray's
-#        "explored" highlighting mode.  This field is not required, and 
+#        "explored" highlighting mode.  This field is not required, and
 #        will default to "false."
 #
 #   tex: The "main" (and possibly only) texture to use for this block type.
@@ -107,7 +89,7 @@
 #   tex_direction: Sometimes blocks have different textures on
 #         different faces.  If some faces aren't specified, the
 #         default "tex" will be used.  Note that "tex" is always
-#         required, even if all directions are overridden.  Valid 
+#         required, even if all directions are overridden.  Valid
 #         values are:
 #             FORWARD
 #             BACKWARD
@@ -179,7 +161,7 @@
 #         "THINSLICE" is currently only used for snow, and I may eventually
 #         change that to "SNOW" instead, and clean up that rendering.
 #
-#   tex_extra: This is a section to provide extra texture information for 
+#   tex_extra: This is a section to provide extra texture information for
 #         block types which require it.  A list of the required tex_extra
 #         attributes per block type are:
 #
@@ -269,17 +251,17 @@
 #            "eye" should be the texture for an inserted Eye of Ender
 #
 name: Vanilla Minecraft Block Types
-  
+
 blocks:
-  
+
   - id: 1
-    idStr: STONE
+    idStr: stone
     name: Stone
     mapcolor: [120, 120, 120]
     tex: [1, 0]
-  
+
   - id: 2
-    idStr: GRASS
+    idStr: grass
     name: Grass
     mapcolor: [117, 176, 73]
     tex: [0, 0]
@@ -288,21 +270,21 @@ blocks:
       SIDES: [3, 0]
       BACKWARD: [3, 0]
       BOTTOM: [2, 0]
-  
+
   - id: 3
-    idStr: DIRT
+    idStr: dirt
     name: Dirt
     mapcolor: [134, 96, 67]
     tex: [2, 0]
-  
+
   - id: 4
-    idStr: COBBLESTONE
+    idStr: stonebrick
     name: Cobblestone
     mapcolor: [115, 115, 115]
     tex: [0, 1]
-  
+
   - id: 5
-    idStr: PLANK
+    idStr: wood
     name: Wood Planks
     mapcolor: [157, 128, 79]
     tex: [4, 0]
@@ -319,99 +301,99 @@ blocks:
       3:
         name: Wood Planks
         tex: [7, 12]
-  
+
   - id: 6
-    idStr: SAPLING
+    idStr: sapling
     name: Sapling
     mapcolor: [120, 120, 120]
     tex: [15, 0]
     type: DECORATION_CROSS
     opacity: 0
     data:
-      0: 
+      0:
         name: Sapling
         tex: [15, 0]
-      1: 
+      1:
         name: Spruce Sapling
         tex: [15, 3]
-      2: 
+      2:
         name: Birch Sapling
         tex: [15, 4]
       3:
         name: Jungle Sapling
         tex: [14, 1]
-    
+
   - id: 7
-    idStr: BEDROCK
+    idStr: bedrock
     name: Bedrock
     aka: Adminium
     mapcolor: [84, 84, 84]
     tex: [1, 1]
-  
+
   - id: 8
-    idStr: WATER
+    idStr: water
     name: Water (active)
     mapcolor: [38, 92, 255]
     type: WATER
     tex: [15, 12]
     opacity: 3
-  
+
   - id: 9
-    idStr: STATIONARY_WATER
+    idStr: water
     name: Water
     mapcolor: [38, 92, 255]
     type: WATER
     tex: [15, 12]
     opacity: 3
-    
+
   - id: 10
-    idStr: LAVA
+    idStr: lava
     name: Lava (active)
     mapcolor: [255, 90, 0]
     tex: [15, 14]
     type: SEMISOLID
     brightness: 15
-  
+
   - id: 11
-    idStr: STATIONARY_LAVA
+    idStr: lava
     name: Lava
     mapcolor: [255, 90, 0]
     tex: [15, 14]
     type: SEMISOLID
     brightness: 15
-    
+
   - id: 12
-    idStr: SAND
+    idStr: sand
     name: Sand
     mapcolor: [218, 210, 158]
     tex: [2, 1]
-  
+
   - id: 13
-    idStr: GRAVEL
+    idStr: gravel
     name: Gravel
     mapcolor: [136, 126, 126]
     tex: [3, 1]
-  
+
   - id: 14
-    idStr: GOLD_ORE
+    idStr: oreGold
     name: Gold Ore
     mapcolor: [143, 140, 125]
     tex: [0, 2]
-  
+
   - id: 15
-    idStr: IRON_ORE
+    idStr: oreIron
     name: Iron Ore
     mapcolor: [136, 130, 127]
     tex: [1, 2]
-  
+
   - id: 16
-    idStr: COAL_ORE
+    idStr: oreCoal
     name: Coal Ore
     mapcolor: [115, 115, 115]
     tex: [2, 2]
-  
+
   - id: 17
-    idStr: WOOD
+    idStr: log
     name: Wood
     mapcolor: [102, 81, 51]
     tex: [4, 1]
@@ -432,9 +414,9 @@ blocks:
       3:
         name: Jungle Wood
         tex: [9, 9]
-  
+
   - id: 18
-    idStr: LEAVES
+    idStr: leaves
     name: Leaves
     mapcolor: [60, 192, 41]
     tex: [5, 3] # The "correct" one is actually [4, 3] but with the current
@@ -476,7 +458,7 @@ blocks:
         name: Jungle Leaves (Permanent)
         mapcolor: [74, 131, 66]
         tex: [5, 12]
-             
+
       8: # bit 0x8 - "Decaying"
         name: Leaves (Decaying)
         mapcolor: [60, 192, 41]
@@ -494,36 +476,36 @@ blocks:
         name: Jungle Leaves (Decaying)
         mapcolor: [74, 131, 66]
         tex: [5, 12]
-             
-      
+
+
   - id: 19
-    idStr: SPONGE
+    idStr: sponge
     name: Sponge
     mapcolor: [193, 193, 57]
     tex: [0, 3]
-  
+
   - id: 20
-    idStr: GLASS
+    idStr: glass
     name: Glass
     mapcolor: [255, 255, 255]
     tex: [1, 3]
     type: GLASS
     opacity: 0
-  
+
   - id: 21
-    idStr: LAPIS_LAZULI_ORE
+    idStr: oreLapis
     name: Lapis Lazuli Ore
     mapcolor: [27, 70, 161]
     tex: [0, 10]
-  
+
   - id: 22
-    idStr: LAPIS_LAZULI_BLOCK
+    idStr: blockLapis
     name: Lapis Lazuli Block
     mapcolor: [0, 0, 0]
     tex: [0, 9]
-  
+
   - id: 23
-    idStr: DISPENSER
+    idStr: dispenser
     name: Dispenser
     mapcolor: [96, 96, 96]
     tex: [14, 2]
@@ -534,9 +516,9 @@ blocks:
       TOP: [14, 3]
       BOTTOM: [14, 3]
     tex_direction_data: {2: NORTH, 3: SOUTH, 4: WEST, 5: EAST}
-  
+
   - id: 24
-    idStr: SANDSTONE
+    idStr: sandStone
     name: Sandstone
     mapcolor: [218, 210, 158]
     tex: [0, 12]
@@ -564,15 +546,15 @@ blocks:
         tex_direction:
           TOP: [0, 11]
           BOTTOM: [0, 11]
-  
+
   - id: 25
-    idStr: NOTE_BLOCK
+    idStr: musicBlock
     name: Note Block
     mapcolor: [114, 88, 56]
     tex: [10, 4]
-  
+
   - id: 26
-    idStr: BED
+    idStr: bed
     name: Bed
     mapcolor: [255, 0, 0]
     tex: [7, 8]
@@ -584,9 +566,9 @@ blocks:
       foot: [5, 9]
       head: [8, 9]
     opacity: 0
-  
+
   - id: 27
-    idStr: POWERED_RAIL
+    idStr: goldenRail
     name: Powered Rail
     mapcolor: [120, 53, 28]
     tex: [3, 10]
@@ -594,9 +576,9 @@ blocks:
     tex_extra:
       powered: [3, 11]
     opacity: 0
-  
+
   - id: 28
-    idStr: DETECTOR_RAIL
+    idStr: detectorRail
     name: Detector Rail
     mapcolor: [200, 189, 189]
     tex: [3, 12]
@@ -605,66 +587,68 @@ blocks:
       powered: [3, 12] # Only because the SIMPLE_RAIL renderer requires it; will
                        # go unused here.
     opacity: 0
-  
+
   - id: 29
-    idStr: PISTON_STICKY_BODY
+    idStr: pistonStickyBase
     name: Sticky Piston
     mapcolor: [132, 132, 132]
     tex: [12, 6]
     type: PISTON_BODY
+    opacity: 0
     tex_extra:
       head: [11, 6]
       back: [13, 6]
       front: [14, 6]
-  
+
   - id: 30
-    idStr: WEB
+    idStr: web
     name: Web
     mapcolor: [255, 255, 255]
     tex: [11, 0]
     type: DECORATION_CROSS
-    opacity: 0
-  
+    opacity: 1
+
   - id: 31
-    idStr: TALL_GRASS
+    idStr: tallgrass
     name: Tall Grass
     mapcolor: [104, 156, 53]
     tex: [7, 2]
     data:
-      0: 
+      0:
         tex: [7, 3]
         name: (Unused Shrub)
-      1: 
+      1:
         tex: [7, 2]
         name: Tall Grass
-      2: 
+      2:
         tex: [8, 3]
-        name: Fern    
+        name: Fern
     type: DECORATION_CROSS
     opacity: 0
-    
-  
+
+
   - id: 32
-    idStr: DEAD_SHRUB
+    idStr: deadbush
     name: Dead Shrub
     mapcolor: [148, 100, 40]
     tex: [7, 3]
     type: DECORATION_CROSS
     opacity: 0
-  
+
   - id: 33
-    idStr: PISTON_BODY
+    idStr: pistonBase
     name: Piston
     mapcolor: [132, 132, 132]
     tex: [12, 6]
     type: PISTON_BODY
+    opacity: 0
     tex_extra:
       head: [11, 6]
       back: [13, 6]
       front: [14, 6]
-  
+
   - id: 34
-    idStr: PISTON_HEAD
+    idStr: 
     name: Piston Head
     mapcolor: [119, 92, 53]
     tex: [11, 6]
@@ -673,132 +657,140 @@ blocks:
       head_sticky: [10, 6]
       body: [12, 6]
     opacity: 0
-  
+
   - id: 35
-    idStr: WOOL
+    idStr: cloth
     name: White Wool
     mapcolor: [222, 222, 222]
     tex: [0, 4]
     data:
-      0: 
+      0:
         tex: [0, 4]
         name: White Wool
         mapcolor: [222, 222, 222]
-      1: 
+      1:
         tex: [2, 13]
         name: Orange Wool
         mapcolor: [234, 127, 55]
-      2: 
+      2:
         tex: [2, 12]
         name: Magenta Wool
         mapcolor: [191, 75, 201]
-      3: 
+      3:
         tex: [2, 11]
         name: Light Blue Wool
         aka: Aqua Wool
         mapcolor: [104, 139, 212]
-      4: 
+      4:
         tex: [2, 10]
         name: Yellow Wool
         mapcolor: [104, 139, 212]
-      5: 
+      5:
         tex: [2, 9]
         name: Lime Wool
         mapcolor: [59, 189, 48]
-      6: 
+      6:
         tex: [2, 8]
         name: Pink Wool
         mapcolor: [217, 131, 155]
-      7: 
+      7:
         tex: [2, 7]
         name: Gray Wool
         mapcolor: [66, 66, 66]
-      8: 
+      8:
         tex: [1, 14]
         name: Light Gray Wool
         mapcolor: [166, 166, 166]
-      9: 
+      9:
         tex: [1, 13]
         name: Cyan Wool
         mapcolor: [39, 117, 149]
-      10: 
+      10:
         tex: [1, 12]
         name: Purple Wool
         aka: Indigo Wool, Violet Wool
         mapcolor: [129, 54, 196]
-      11: 
+      11:
         tex: [1, 11]
         name: Blue Wool
         mapcolor: [39, 51, 161]
-      12: 
+      12:
         tex: [1, 10]
         name: Brown Wool
         mapcolor: [86, 51, 28]
-      13: 
+      13:
         tex: [1, 9]
         name: Green Wool
         mapcolor: [56, 77, 24]
-      14: 
+      14:
         tex: [1, 8]
         name: Red Wool
         mapcolor: [164, 45, 41]
-      15: 
+      15:
         tex: [1, 7]
         name: Black Wool
         mapcolor: [0, 0, 0]
-  
+
+  - id: 36
+    idStr: 
+    name: Piston Movement Placeholder
+    mapcolor: [0, 0, 0]
+    tex: [0, 0]
+    opacity: 0
+
   - id: 37
-    idStr: YELLOW_FLOWER
+    idStr: flower
     name: Flower
     mapcolor: [255, 255, 0]
     tex: [13, 0]
     type: DECORATION_CROSS
     opacity: 0
-  
+
   - id: 38
-    idStr: RED_ROSE
+    idStr: rose
     name: Rose
     mapcolor: [255, 0, 0]
     tex: [12, 0]
     type: DECORATION_CROSS
     opacity: 0
-  
+
   - id: 39
-    idStr: BROWN_MUSHROOM
+    idStr: mushroom
     name: Brown Mushroom
     mapcolor: [145, 109, 85]
     tex: [13, 1]
     type: DECORATION_CROSS
     opacity: 0
-  
+    brightness: 1
+
   - id: 40
-    idStr: RED_MUSHROOM
+    idStr: mushroom
     name: Red Mushroom
     mapcolor: [226, 18, 18]
     tex: [12, 1]
     type: DECORATION_CROSS
     opacity: 0
-  
+
   - id: 41
-    idStr: GOLD_BLOCK
+    idStr: blockGold
     name: Block of Gold
     mapcolor: [231, 165, 45]
     tex: [7, 1]
-  
+
   - id: 42
-    idStr: IRON_BLOCK
+    idStr: blockIron
     name: Block of Iron
     mapcolor: [191, 191, 191]
     tex: [6, 1]
-  
+
   - id: 43
-    idStr: DOUBLE_SLAB
+    idStr: stoneSlab
     name: Double Slab
     aka: Step
     mapcolor: [200, 200, 200]
     tex: [6, 0]
     data:
-      0: 
+      0:
         tex: [5, 0]
         tex_direction:
           TOP: [6, 0]
@@ -806,38 +798,38 @@ blocks:
           FORWARD: [5, 0]
           BACKWARD: [5, 0]
           SIDES: [5, 0]
-          
+
         name: Double Stone Slab
-      1: 
+      1:
         tex: [0, 12]
         tex_direction:
           TOP: [0, 11]
           BOTTOM: [0, 13]
         name: Double Sandstone Slab
-      2: 
+      2:
         tex: [4, 0]
         name: Double Wooden Slab
-      3: 
+      3:
         tex: [0, 1]
         name: Double Cobblestone Slab
-      4: 
+      4:
         tex: [7, 0]
         name: Double Brick Slab
-      5: 
+      5:
         tex: [6, 3]
         name: Double Stone Brick Slab
       6:
-        name: Double Smooth Stone Slab
-        tex: [6, 0]
-      
+        tex: [0, 14]
+        name: Double Nether Brick Slab
+
   - id: 44
-    idStr: SLAB
+    idStr: stoneSlab
     name: Slab
     aka: Half Step
     mapcolor: [200, 200, 200]
     tex: [6, 0]
     data:
-      0: 
+      0:
         tex: [6, 0]
         tex_direction:
           TOP: [6, 0]
@@ -846,65 +838,68 @@ blocks:
           BACKWARD: [5, 0]
           SIDES: [5, 0]
         name: Stone Slab
-      1: 
+      1:
         tex: [0, 12]
         tex_direction:
           TOP: [0, 11]
           BOTTOM: [0, 13]
         name: Sandstone Slab
-      2: 
+      2:
         tex: [4, 0]
         name: Wooden Slab
-      3: 
+      3:
         tex: [0, 1]
         name: Cobblestone Slab
-      4: 
+      4:
         tex: [7, 0]
         name: Brick Slab
-      5: 
+      5:
         tex: [6, 3]
         name: Stone Brick Slab
+      6:
+        tex: [0, 14]
+        name: Nether Brick Slab
     type: HALFHEIGHT
-  
+
   - id: 45
-    idStr: BRICK
+    idStr: brick
     name: Brick
     mapcolor: [170, 86, 62]
     tex: [7, 0]
-  
+
   - id: 46
-    idStr: TNT
+    idStr: tnt
     name: TNT
     mapcolor: [160, 83, 65]
     tex: [8, 0]
     tex_direction:
       TOP: [9, 0]
       BOTTOM: [10, 0]
-  
+
   - id: 47
-    idStr: BOOKSHELF
+    idStr: bookshelf
     name: Bookshelf
     mapcolor: [188, 152, 98]
     tex: [3, 2]
     tex_direction:
       TOP: [4, 0]
       BOTTOM: [4, 0]
-  
+
   - id: 48
-    idStr: MOSSY_COBBLESTONE
+    idStr: stoneMoss
     name: Moss Stone
     aka: Mossy Cobblestone
     mapcolor: [115, 169, 115]
     tex: [4, 2]
-  
+
   - id: 49
-    idStr: OBSIDIAN
+    idStr: obsidian
     name: Obsidian
     mapcolor: [26, 11, 43]
     tex: [5, 2]
-  
+
   - id: 50
-    idStr: TORCH
+    idStr: torch
     name: Torch
     mapcolor: [245, 220, 50]
     tex: [0, 5]
@@ -912,69 +907,71 @@ blocks:
     explored: true
     opacity: 0
     brightness: 14
-      
+
   - id: 51
-    idStr: FIRE
+    idStr: fire
     name: Fire
     mapcolor: [255, 170, 30]
     type: SEMISOLID
     tex: [15, 1]
     opacity: 0
     brightness: 15
-    
+
   - id: 52
-    idStr: MOB_SPAWNER
+    idStr: mobSpawner
     name: Monster Spawner
     aka: Mob Cage
     mapcolor: [25, 82, 122]
     tex: [1, 4]
     type: SEMISOLID
     opacity: 0
-    
+
   - id: 53
-    idStr: WOODEN_STAIRS
+    idStr: stairsWood
     name: Wooden Stairs
     mapcolor: [157, 128, 79]
     tex: [4, 0]
     type: STAIRS
-  
+    opacity: 0
+
   - id: 54
-    idStr: CHEST
+    texfile: item/largechest.png
+    idStr: chest
     name: Chest
     mapcolor: [125, 91, 38]
-    tex: [11, 1]
+    tex: [1, 0]
     type: CHEST
     tex_extra:
-      side_small: [10, 1]
-      top: [9, 1]
-      front_big_left: [9, 2]
-      front_big_right: [10, 2]
-      back_big_left: [9, 3]
-      back_big_right: [10, 3]
+      side_small: [1, 0]
+      top: [3, 0]
+      front_big_left: [1, 0]
+      front_big_right: [1, 0]
+      back_big_left: [1, 0]
+      back_big_right: [1, 0]
     opacity: 0
-    
+
   - id: 55
-    idStr: REDSTONE_WIRE
+    idStr: redstoneDust
     name: Redstone Wire
     mapcolor: [245, 50, 50]
     tex: [4, 10]
     type: FLOOR
     opacity: 0
-    
+
   - id: 56
-    idStr: DIAMOND_ORE
+    idStr: oreDiamond
     name: Diamond Ore
     mapcolor: [129, 140, 143]
     tex: [2, 3]
-  
+
   - id: 57
-    idStr: DIAMOND_BLOCK
+    idStr: blockDiamond
     name: Block of Diamond
     mapcolor: [45, 166, 152]
     tex: [8, 1]
-  
+
   - id: 58
-    idStr: WORKBENCH
+    idStr: workbench
     name: Crafting Table
     aka: Workbench
     mapcolor: [114, 88, 56]
@@ -983,9 +980,9 @@ blocks:
       SIDES: [11, 3]
       TOP: [11, 2]
       BOTTOM: [4, 0]
-  
+
   - id: 59
-    idStr: CROPS
+    idStr: crops
     name: Crops
     aka: Wheat
     mapcolor: [146, 192, 0]
@@ -1001,9 +998,9 @@ blocks:
       6: {tex: [14, 5]}
       7: {tex: [15, 5]}
     opacity: 0
-    
+
   - id: 60
-    idStr: FARMLAND
+    idStr: farmland
     name: Farmland
     aka: Soil
     mapcolor: [95, 58, 30]
@@ -1013,9 +1010,9 @@ blocks:
       SIDES: [2, 0]
       BACKWARD: [2, 0]
       BOTTOM: [2, 0]
-    
+
   - id: 61
-    idStr: FURNACE
+    idStr: furnace
     name: Furnace
     mapcolor: [96, 96, 96]
     tex: [12, 2]
@@ -1026,9 +1023,9 @@ blocks:
       TOP: [14, 3]
       BOTTOM: [14, 3]
     tex_direction_data: {2: NORTH, 3: SOUTH, 4: WEST, 5: EAST}
-  
+
   - id: 62
-    idStr: BURNING_FURNACE
+    idStr: furnace
     name: Lit Furnace
     mapcolor: [96, 96, 96]
     tex: [13, 3]
@@ -1039,18 +1036,18 @@ blocks:
       TOP: [14, 3]
       BOTTOM: [14, 3]
     tex_direction_data: {2: NORTH, 3: SOUTH, 4: WEST, 5: EAST}
-    brightness: 14
-    
+    brightness: 13
+
   - id: 63
-    idStr: SIGNPOST
+    idStr: sign
     name: Sign
     mapcolor: [111, 91, 54]
     tex: [4, 0]
     type: SIGNPOST
     opacity: 0
-    
+
   - id: 64
-    idStr: WOODEN_DOOR
+    idStr: doorWood
     name: Wooden Door
     mapcolor: [136, 109, 67]
     tex: [1, 5]
@@ -1058,17 +1055,17 @@ blocks:
     tex_extra:
       bottom: [1, 6]
     opacity: 0
-    
+
   - id: 65
-    idStr: LADDER
+    idStr: ladder
     name: Ladder
     mapcolor: [181, 140, 64]
     tex: [3, 5]
     type: LADDER
     opacity: 0
-    
+
   - id: 66
-    idStr: MINECART_TRACKS
+    idStr: rail
     name: Rail
     aka: Minecart Track
     mapcolor: [150, 134, 102]
@@ -1077,24 +1074,24 @@ blocks:
     tex_extra:
       curve: [0, 7]
     opacity: 0
-    
+
   - id: 67
-    idStr: COBBLESTONE_STAIRS
+    idStr: stairsStone
     name: Stone Stairs
     mapcolor: [115, 115, 115]
     tex: [0, 1]
     type: STAIRS
-  
+
   - id: 68
-    idStr: WALL_SIGN
+    idStr: sign
     name: Wall Sign
     mapcolor: [111, 91, 54]
     tex: [4, 0]
     type: WALLSIGN
     opacity: 0
-    
+
   - id: 69
-    idStr: LEVER
+    idStr: lever
     name: Lever
     aka: Switch
     mapcolor: [124, 98, 62]
@@ -1103,18 +1100,18 @@ blocks:
     tex_extra:
       base: [0, 1]
     opacity: 0
-    
+
   - id: 70
-    idStr: STONE_PRESSURE_PLATE
+    idStr: pressurePlate
     name: Stone Pressure Plate
     aka: Stone Floor Plate
     mapcolor: [120, 120, 120]
     tex: [1, 0]
     type: PRESSURE_PLATE
     opacity: 0
-    
+
   - id: 71
-    idStr: IRON_DOOR
+    idStr: doorIron
     name: Iron Door
     mapcolor: [191, 191, 191]
     tex: [2, 5]
@@ -1122,41 +1119,41 @@ blocks:
     tex_extra:
       bottom: [2, 6]
     opacity: 0
-    
+
   - id: 72
-    idStr: WOODEN_PRESSURE_PLATE
+    idStr: pressurePlate
     name: Wooden Pressure Plate
     aka: Wooden Floor Plate
     mapcolor: [157, 128, 79]
     tex: [4, 0]
     type: PRESSURE_PLATE
     opacity: 0
-    
+
   - id: 73
-    idStr: REDSTONE_ORE
+    idStr: oreRedstone
     name: Redstone Ore
     mapcolor: [131, 107, 107]
     tex: [3, 3]
-  
+
   - id: 74
-    idStr: GLOWING_REDSTONE_ORE
+    idStr: oreRedstone
     name: Redstone Ore (glowing)
     mapcolor: [131, 107, 107]
     tex: [3, 3]
     brightness: 9
-  
+
   - id: 75
-    idStr: REDSTONE_TORCH_OFF
+    idStr: notGate
     name: Redstone Torch (off)
     mapcolor: [181, 140, 64]
     tex: [3, 7]
     type: TORCH
     explored: true
     opacity: 0
-    
-  
+
+
   - id: 76
-    idStr: REDSTONE_TORCH_ON
+    idStr: notGate
     name: Redstone Torch (on)
     mapcolor: [255, 0, 0]
     tex: [3, 6]
@@ -1164,39 +1161,39 @@ blocks:
     explored: true
     opacity: 0
     brightness: 7
-    
+
   - id: 77
-    idStr: STONE_BUTTON
+    idStr: button
     name: Button
     mapcolor: [120, 120, 120]
     tex: [1, 0]
     type: BUTTON
     opacity: 0
-    
+
   - id: 78
-    idStr: SNOW
+    idStr: snow
     name: Snow Layer
     mapcolor: [255, 255, 255]
     tex: [2, 4]
     type: THINSLICE
     opacity: 0
-    
+
   - id: 79
-    idStr: ICE
+    idStr: ice
     name: Ice
     mapcolor: [83, 113, 163]
     tex: [3, 4]
     type: WATER
     opacity: 3
-    
+
   - id: 80
-    idStr: SNOW_BLOCK
+    idStr: snow
     name: Snow
     mapcolor: [250, 250, 250]
     tex: [2, 4]
-  
+
   - id: 81
-    idStr: CACTUS
+    idStr: cactus
     name: Cactus
     mapcolor: [25, 120, 25]
     tex: [6, 4]
@@ -1204,40 +1201,40 @@ blocks:
       TOP: [5, 4]
       BOTTOM: [5, 4]
     opacity: 0
-    
+
   - id: 82
-    idStr: CLAY
+    idStr: clay
     name: Clay
     mapcolor: [151, 157, 169]
     tex: [8, 4]
-  
+
   - id: 83
-    idStr: SUGARCANE
+    idStr: reeds
     name: Sugar Cane
     aka: Reeds, Papyrus
     mapcolor: [100, 67, 50]
     tex: [9, 4]
     type: DECORATION_CROSS
     opacity: 0
-    
+
   - id: 84
-    idStr: JUKEBOX
+    idStr: jukebox
     name: Jukebox
     mapcolor: [114, 88, 56]
     tex: [10, 4]
     tex_direction:
       TOP: [11, 4]
-  
+
   - id: 85
-    idStr: FENCE
+    idStr: fence
     name: Fence
     mapcolor: [157, 128, 79]
     tex: [4, 0]
     type: FENCE
     opacity: 0
-    
+
   - id: 86
-    idStr: PUMPKIN
+    idStr: pumpkin
     name: Pumpkin
     mapcolor: [227, 144, 29]
     tex: [7, 7]
@@ -1248,38 +1245,38 @@ blocks:
       TOP: [6, 6]
       BOTTOM: [6, 6]
     tex_direction_data: {0: SOUTH, 1: WEST, 2: NORTH, 3: EAST}
-  
+
   - id: 87
-    idStr: NETHERRACK
+    idStr: hellrock
     name: Netherrack
     mapcolor: [104, 8, 8]
     tex: [7, 6]
-  
+
   - id: 88
-    idStr: SOUL_SAND
+    idStr: hellsand
     name: Soul Sand
     aka: Slow Sand
     mapcolor: [106, 82, 68]
     tex: [8, 6]
-  
+
   - id: 89
-    idStr: GLOWSTONE
+    idStr: lightgem
     name: Glowstone
     mapcolor: [249, 212, 156]
     tex: [9, 6]
     explored: true
     brightness: 15
-    
+
   - id: 90
-    idStr: PORTAL
+    idStr: portal
     name: Nether Portal
     mapcolor: [214, 127, 255]
     type: PORTAL
     brightness: 11
     opacity: 0
-    
+
   - id: 91
-    idStr: JACK_O_LANTERN
+    idStr: litpumpkin
     name: Jack-o'-Lantern
     mapcolor: [249, 255, 58]
     explored: true
@@ -1292,9 +1289,9 @@ blocks:
       BOTTOM: [6, 6]
     tex_direction_data: {0: SOUTH, 1: WEST, 2: NORTH, 3: EAST}
     brightness: 15
-    
+
   - id: 92
-    idStr: CAKE
+    idStr: cake
     name: Cake
     mapcolor: [234, 233, 235]
     tex: [9, 7]
@@ -1304,61 +1301,65 @@ blocks:
       side_cut: [11, 7]
       bottom: [12, 7]
     opacity: 0
-    
+
   - id: 93
-    idStr: REDSTONE_REPEATER_OFF
+    idStr: diode
     name: Redstone Repeater (off)
     mapcolor: [245, 50, 50]
     tex: [3, 8]
     type: PRESSURE_PLATE
     opacity: 0
-    
+
   - id: 94
-    idStr: REDSTONE_REPEATER_ON
+    idStr: diode
     name: Redstone Repeater (on)
     mapcolor: [245, 50, 50]
     tex: [3, 9]
     type: PRESSURE_PLATE
     opacity: 0
     brightness: 9
-    
+
+  - id: 95
+    name: Locked Chest
+    brightness: 15
+
   - id: 96
-    idStr: TRAPDOOR
+    idStr: trapdoor
     name: Trapdoor
     mapcolor: [143, 107, 53]
     tex: [4, 5]
     type: TRAPDOOR
     opacity: 0
-    
+
   - id: 97
-    idStr: SILVERFISH
+    idStr: monsterStoneEgg
     name: Hidden Silverfish
     mapcolor: [120, 120, 120]
     tex: [1, 0]
     data:
-      0: 
+      0:
         tex: [1, 0]
         name: Hidden Silverfish (Smooth Stone)
-      1: 
+      1:
         tex: [0, 1]
         name: Hidden Silverfish (Cobblestone)
-      2: 
+      2:
         tex: [6, 3]
         name: Hidden Silverfish (Stone Brick)
 
   - id: 98
-    idStr: STONE_BRICK
+    idStr: stonebricksmooth
     name: Stone Bricks
     mapcolor: [120, 120, 120]
     tex: [6, 3]
     data:
-      0: 
+      0:
         tex: [6, 3]
         name: Stone Bricks
-      1: 
+      1:
         tex: [4, 6]
         name: Mossy Stone Bricks
-      2: 
+      2:
         tex: [5, 6]
         name: Cracked Stone Bricks
       3:
@@ -1366,7 +1367,7 @@ blocks:
         name: Circle Stone Bricks
 
   - id: 99
-    idStr: HUGE_BROWN_MUSHROOM
+    idStr: mushroom
     name: Huge Brown Mushroom
     mapcolor: [145, 109, 85]
     tex: [14, 7]
@@ -1376,7 +1377,7 @@ blocks:
       pores: [14, 8]
 
   - id: 100
-    idStr: HUGE_RED_MUSHROOM
+    idStr: mushroom
     name: Huge Red Mushroom
     mapcolor: [181, 29, 27]
     tex: [13, 7]
@@ -1386,23 +1387,23 @@ blocks:
       pores: [14, 8]
 
   - id: 101
-    idStr: IRON_BARS
+    idStr: fenceIron
     name: Iron Bars
     mapcolor: [77, 77, 78]
     tex: [5, 5]
     type: SOLID_PANE
     opacity: 0
-    
+
   - id: 102
-    idStr: GLASS_PANE
+    idStr: thinGlass
     name: Glass Pane
     mapcolor: [255, 255, 255]
     tex: [1, 3]
     type: SOLID_PANE
     opacity: 0
-    
+
   - id: 103
-    idStr: MELON
+    idStr: melon
     name: Watermelon
     mapcolor: [190, 184, 41]
     tex: [9, 8]
@@ -1412,7 +1413,7 @@ blocks:
       BACKWARD: [8, 8]
 
   - id: 104
-    idStr: PUMPKIN_STEM
+    idStr: pumpkinStem
     name: Pumpkin Stem
     mapcolor: [227, 144, 29]
     tex: [15, 6]
@@ -1420,9 +1421,9 @@ blocks:
     tex_extra:
       curve: [15, 7]
     opacity: 0
-    
+
   - id: 105
-    idStr: MELON_STEM
+    idStr: pumpkinStem
     name: Melon Stem
     mapcolor: [190, 184, 41]
     tex: [15, 6]
@@ -1430,39 +1431,39 @@ blocks:
     tex_extra:
       curve: [15, 7]
     opacity: 0
-    
+
   - id: 106
-    idStr: VINE
+    idStr: vine
     name: Vines
     mapcolor: [117, 176, 73]
     tex: [15, 8]
     type: VINE
     opacity: 0
-    
+
   - id: 107
-    idStr: FENCE_GATE
+    idStr: fenceGate
     name: Fence Gate
     mapcolor: [157, 128, 79]
     tex: [4, 0]
     type: FENCE_GATE
     opacity: 0
-    
+
   - id: 108
-    idStr: BRICK_STAIRS
+    idStr: stairsBrick
     name: Brick Stairs
     mapcolor: [170, 86, 62]
     tex: [7, 0]
     type: STAIRS
 
   - id: 109
-    idStr: STONE_BRICK_STAIRS
+    idStr: stairsStoneBrickSmooth
     name: Stone Brick Stairs
     mapcolor: [120, 120, 120]
     tex: [6, 3]
     type: STAIRS
 
   - id: 110
-    idStr: MYCELIUM
+    idStr: mycel
     name: Mycelium
     mapcolor: [140, 115, 119]
     tex: [14, 4]
@@ -1473,36 +1474,36 @@ blocks:
       BACKWARD: [13, 4]
 
   - id: 111
-    idStr: LILY_PAD
+    idStr: waterlily
     name: Lilypad
     mapcolor: [117, 176, 73]
     tex: [12, 4]
     type: FLOOR
     opacity: 0
-    
+
   - id: 112
-    idStr: NETHER_BRICK
+    idStr: netherBrick
     name: Nether Brick
     mapcolor: [54, 24, 30]
     tex: [0, 14]
-  
+
   - id: 113
-    idStr: NETHER_FENCE
+    idStr: netherFence
     name: Nether Fence
     mapcolor: [54, 24, 30]
     tex: [0, 14]
     type: FENCE
     opacity: 0
-    
+
   - id: 114
-    idStr: NETHER_STAIRS
+    idStr: stairsNetherBrick
     name: Nether Stairs
     mapcolor: [54, 24, 30]
     tex: [0, 14]
     type: STAIRS
 
   - id: 115
-    idStr: NETHER_WART
+    idStr: netherStalk
     name: Nether Wart
     mapcolor: [112, 8, 28]
     tex: [4, 14]
@@ -1511,19 +1512,20 @@ blocks:
       smaller_1: [3, 14]
       smaller_2: [2, 14]
     opacity: 0
-    
+
   - id: 116
-    idStr: ENCHANTMENT_TABLE
+    idStr: enchantmentTable
     name: Enchantment Table
     mapcolor: [88, 23, 22]
     tex: [6, 10]
     type: ENCHANTMENT_TABLE
+    opacity: 0
     tex_extra:
       sides: [6, 11]
       bottom: [7, 11]
-  
+
   - id: 117
-    idStr: BREWING_STAND
+    idStr: brewingStand
     name: Brewing Stand
     mapcolor: [189, 163, 82]
     tex: [13, 9]
@@ -1531,25 +1533,28 @@ blocks:
     tex_extra:
       base: [12, 9]
     opacity: 0
-    
+    brightness: 1
+
   - id: 118
-    idStr: CAULDRON
-    name: CAULDRON
+    idStr: cauldron
+    name: Cauldron
     mapcolor: [79, 79, 79]
     tex: [10, 9]
     type: CAULDRON
     tex_extra:
       inside: [11, 8]
       top: [10, 8]
+    opacity: 0
 
   - id: 119
-    idStr: ENDER_PORTAL
+    idStr: 
     name: Ender Portal
     mapcolor: [0, 0, 0]
     type: ENDER_PORTAL
+    opacity: 0
 
   - id: 120
-    idStr: ENDER_PORTAL_FRAME
+    idStr: endPortalFrame
     name: Portal Frame
     mapcolor: [55, 142, 215]
     tex: [14, 9]
@@ -1558,31 +1563,239 @@ blocks:
       sides: [15, 9]
       bottom: [15, 10]
       eye: [14, 10]
+    opacity: 0
+    brightness: 1
 
   - id: 121
-    idStr: ENDER_STONE
+    idStr: whiteStone
     name: End Stone
     mapcolor: [235, 248, 182]
     tex: [15, 10]
 
   - id: 122
-    idStr: DRAGON_EGG
+    idStr: dragonEgg
     name: Dragon Egg
     aka: Ender Dragon Egg
     mapcolor: [45, 1, 51]
     tex: [7, 10]
+    brightness: 1
+    opacity: 0
 
   - id: 123
-    idStr: REDSTONE_LAMP_OFF
+    idStr: redstoneLight
     name: Redstone Lamp (off)
     mapcolor: [156, 104, 54]
     tex: [3, 13]
 
   - id: 124
-    idStr: REDSTONE_LAMP_ON
+    idStr: redstoneLight
     name: Redstone Lamp (on)
     mapcolor: [208, 152, 70]
     tex: [4, 13]
     brightness: 15
+
+  - id: 125
+    idStr: woodSlab
+    name: Wooden Double Slab
+    aka: Wood Double Step
+    mapcolor: [200, 200, 200]
+    tex: [4, 0]
+    data:
+      0:
+        tex: [4, 0]
+        name: Oak-Wood Double Slab
+      1:
+        tex: [6, 12]
+        name: Spruce-Wood Double Slab
+      2:
+        tex: [6, 13]
+        name: Birch-Wood Double Slab
+      3:
+        tex: [7, 12]
+        name: Jungle-Wood Double Slab
+
+  - id: 126
+    idStr: woodSlab
+    name: Wooden Slab
+    aka: Wood Half Step
+    mapcolor: [200, 200, 200]
+    tex: [4, 0]
+    data:
+      0:
+        tex: [4, 0]
+        name: Oak-Wood Slab
+      1:
+        tex: [6, 12]
+        name: Spruce-Wood Slab
+      2:
+        tex: [6, 13]
+        name: Birch-Wood Slab
+      3:
+        tex: [7, 12]
+        name: Jungle-Wood Slab
+    type: HALFHEIGHT
+
+  - id: 127
+    idStr: cocoa
+    name: Cocoa Plant
+    mapcolor: [181, 140, 64]
+    tex: [10, 10]
+    type: CROPS
+    opacity: 0
+
+  - id: 128
+    idStr: stairsSandStone
+    name: Sandstone Stairs
+    mapcolor: [157, 128, 79]
+    tex: [0, 12]
+    type: STAIRS
+
+  - id: 129
+    idStr: oreEmerald
+    name: Emerald Ore
+    mapcolor: [200, 200, 200]
+    tex: [11, 10]
+
+  - id: 130
+    idStr: enderChest
+    name: Ender Chest
+    mapcolor: [200, 200, 200]
+    tex: [11, 11]
+    data:
+      0: {tex: [11, 11]}
+      1: {tex: [11, 11]}
+      2: {tex: [11, 11]}
+      3: {tex: [11, 11]}
+      4: {tex: [11, 11]}
+    opacity: 0
+    brightness: 7
+
+  - id: 131
+    idStr: tripWireSource
+    name: Tripwire Hook
+    mapcolor: [200, 200, 200]
+    tex: [12, 10]
+    type: CROPS
+    opacity: 0
+
+  - id: 132
+    idStr: tripWire
+    name: Tripwire
+    mapcolor: [200, 200, 200]
+    tex: [13, 10]
+    type: CROPS
+    opacity: 0
+
+  - id: 133
+    idStr: blockEmerald
+    name: Block of Emerald
+    mapcolor: [200, 200, 200]
+    tex: [9, 1]
+
+  - id: 134
+    idStr: stairsWoodSpruce
+    name: Spruce-Wood Stairs
+    mapcolor: [157, 128, 79]
+    tex: [6, 12]
+    type: STAIRS
+
+  - id: 135
+    idStr: stairsWoodBirch
+    name: Birch-Wood Stairs
+    mapcolor: [157, 128, 79]
+    tex: [6, 13]
+    type: STAIRS
+
+  - id: 136
+    idStr: stairsWoodJungle
+    name: Jungle-Wood Stairs
+    mapcolor: [157, 128, 79]
+    tex: [7, 12]
+    type: STAIRS
+
+  - id: 137
+    idStr: commandBlock
+    name: Command Block
+    mapcolor: [200, 200, 200]
+    tex: [8, 11]
+
+  - id: 138
+    idStr: beacon
+    name: Beacon Block
+    mapcolor: [200, 200, 200]
+    tex: [9, 2]
+    opacity: 0
+    brightness: 15
+
+  - id: 139
+    idStr: cobbleWall
+    name: Cobblestone Wall
+    mapcolor: [128, 128, 128]
+    tex: [0, 1]
+    type: FENCE
+    data:
+      0:
+        tex: [0, 1]
+        name: Cobblestone Wall
+      1:
+        tex: [4, 2]
+        name: Mossy Cobblestone Wall
+    opacity: 0
+
+  - id: 140
+    idStr: flowerPot
+    name: Flower Pot
+    mapcolor: [200, 200, 200]
+    tex: [10, 11]
+    opacity: 0
+
+  - id: 141
+    idStr: carrots
+    name: Carrots
+    mapcolor: [200, 100, 100]
+    tex: [11, 12]
+    type: CROPS
+    data:
+      0: {tex: [8, 12]}
+      1: {tex: [9, 12]}
+      2: {tex: [10, 12]}
+      3: {tex: [11, 12]}
+    opacity: 0
+
+  - id: 142
+    idStr: potatoes
+    name: Potatoes
+    mapcolor: [200, 100, 100]
+    tex: [12, 12]
+    type: CROPS
+    data:
+      0: {tex: [8, 12]}
+      1: {tex: [9, 12]}
+      2: {tex: [10, 12]}
+      3: {tex: [12, 12]}
+    opacity: 0
+
+  - id: 143
+    idStr: button
+    name: Wooden Button
+    mapcolor: [200, 100, 100]
+    tex: [4, 0]
+    type: BUTTON
+    opacity: 0
+
+  - id: 144
+    idStr: skull
+    name: Mob Head
+    mapcolor: [200, 100, 100]
+    tex: [0, 0]
+    opacity: 0
+
+  - id: 145
+    idStr: anvil
+    name: Anvil
+    mapcolor: [100, 100, 100]
+    tex: [0, 0]
+    opacity: 0
+
 
 ...

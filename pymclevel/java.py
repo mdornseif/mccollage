@@ -15,8 +15,6 @@ import os
 import re
 
 log = getLogger(__name__)
-warn, error, info, debug = log.warn, log.error, log.info, log.debug
-
 
 class MCJavaLevel(MCLevel):
     def setBlockDataAt(self, *args):
@@ -38,13 +36,12 @@ class MCJavaLevel(MCLevel):
         return self.Blocks.shape[0]
 
     def guessSize(self, data):
+        Width = 64
+        Length = 64
+        Height = 64
         if data.shape[0] <= (32 * 32 * 64) * 2:
-            warn(u"Can't guess the size of a {0} byte level".format(data.shape[0]))
+            log.warn(u"Can't guess the size of a {0} byte level".format(data.shape[0]))
             raise IOError("MCJavaLevel attempted for smaller than 64 blocks cubed")
-        if data.shape[0] > (32 * 32 * 64) * 2:
-            Width = 64
-            Length = 64
-            Height = 64
         if data.shape[0] > (64 * 64 * 64) * 2:
             Width = 128
             Length = 128
@@ -81,12 +78,12 @@ class MCJavaLevel(MCLevel):
         if r and len(r) >= 3:
             (w, l, h) = map(int, r[-3:])
             if w * l * h > data.shape[0]:
-                info("Not enough blocks for size " + str((w, l, h)))
+                log.info("Not enough blocks for size " + str((w, l, h)))
                 w, l, h = self.guessSize(data)
         else:
             w, l, h = self.guessSize(data)
 
-        info(u"MCJavaLevel created for potential level of size " + str((w, l, h)))
+        log.info(u"MCJavaLevel created for potential level of size " + str((w, l, h)))
 
         blockCount = h * l * w
         if blockCount > data.shape[0]:
@@ -114,10 +111,8 @@ class MCJavaLevel(MCLevel):
     def saveInPlace(self):
 
         s = StringIO()
-        if self.compressed:
-            g = gzip.GzipFile(fileobj=s, mode='wb')
-        else:
-            g = s
+        g = gzip.GzipFile(fileobj=s, mode='wb')
+
 
         g.write(self.filedata.tostring())
         g.flush()
@@ -132,7 +127,7 @@ class MCJavaLevel(MCLevel):
             with open(self.filename, 'wb') as f:
                 f.write(s.getvalue())
         except Exception, e:
-            info(u"Error while saving java level in place: {0}".format(e))
+            log.info(u"Error while saving java level in place: {0}".format(e))
             try:
                 os.remove(self.filename)
             except:

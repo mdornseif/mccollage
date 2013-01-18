@@ -3,27 +3,23 @@ Created on Jul 22, 2011
 
 @author: Rio
 '''
-
-import blockrotation
+import atexit
 from contextlib import closing
-from cStringIO import StringIO
-from box import BoundingBox
-import gzip
-from level import MCLevel, EntityLevel
-from logging import getLogger
-from materials import alphaMaterials, MCMaterials, namedMaterials
-from mclevelbase import Blocks, ChunkMalformed, Data, decompress_first, Entities, exhaust, Height, Length, TileEntities, unpack_first, Width
-import nbt
-from numpy import array, swapaxes, uint8, zeros
 import os
 import shutil
-import sys
+import zipfile
+from logging import getLogger
+
+import blockrotation
+from box import BoundingBox
+import infiniteworld
+from level import MCLevel, EntityLevel
+from materials import alphaMaterials, MCMaterials, namedMaterials
+from mclevelbase import exhaust
+import nbt
+from numpy import array, swapaxes, uint8, zeros, resize
 
 log = getLogger(__name__)
-warn, error, info, debug = log.warn, log.error, log.info, log.debug
-
-# schematic
-Materials = 'Materials'
 
 __all__ = ['MCSchematic', 'INVEditChest']
 
@@ -50,9 +46,6 @@ class MCSchematic (EntityLevel):
         I'm not sure what happens when I try to re-save a rotated schematic.
         """
 
-        # if(shape != None):
-        #    self.setShape(shape)
-
         if filename:
             self.filename = filename
             if None is root_tag and os.path.exists(filename):
@@ -68,190 +61,171 @@ class MCSchematic (EntityLevel):
 
         if root_tag:
             self.root_tag = root_tag
-            if Materials in root_tag:
+            if "Materials" in root_tag:
                 self.materials = namedMaterials[self.Materials]
             else:
-                root_tag[Materials] = nbt.TAG_String(self.materials.name)
-            self.shapeChunkData()
+                root_tag["Materials"] = nbt.TAG_String(self.materials.name)
+
+            w = self.root_tag["Width"].value
+            l = self.root_tag["Length"].value
+            h = self.root_tag["Height"].value
+
+            self._Blocks = self.root_tag["Blocks"].value.astype('uint16').reshape(h, l, w) # _Blocks is y, z, x
+            del self.root_tag["Blocks"]
+            if "AddBlocks" in self.root_tag:
+                # Use WorldEdit's "AddBlocks" array to load and store the 4 high bits of a block ID.
+                # Unlike Minecraft's NibbleArrays, this array stores the first block's bits in the
+                # 4 high bits of the first byte.
+
+                size = (h * l * w)
+
+                # If odd, add one to the size to make sure the adjacent slices line up.
+                add = zeros(size + (size & 1), 'uint16')
+
+                # Fill the even bytes with data
+                add[::2] = self.root_tag["AddBlocks"].value
+
+                # Copy the low 4 bits to the odd bytes
+                add[1::2] = add[::2] & 0xf
+
+                # Shift the even bytes down
+                add[::2] >>= 4
+
+                # Shift every byte up before merging it with Blocks
+                add <<= 8
+                self._Blocks |= add[:size].reshape(h, l, w)
+                del self.root_tag["AddBlocks"]
+
+            self.root_tag["Data"].value = self.root_tag["Data"].value.reshape(h, l, w)
+
+            if "Biomes" in self.root_tag:
+                self.root_tag["Biomes"].value.shape = (l, w)
 
         else:
-            assert shape != None
+            assert shape is not None
             root_tag = nbt.TAG_Compound(name="Schematic")
-            root_tag[Height] = nbt.TAG_Short(shape[1])
-            root_tag[Length] = nbt.TAG_Short(shape[2])
-            root_tag[Width] = nbt.TAG_Short(shape[0])
+            root_tag["Height"] = nbt.TAG_Short(shape[1])
+            root_tag["Length"] = nbt.TAG_Short(shape[2])
+            root_tag["Width"] = nbt.TAG_Short(shape[0])
 
-            root_tag[Entities] = nbt.TAG_List()
-            root_tag[TileEntities] = nbt.TAG_List()
+            root_tag["Entities"] = nbt.TAG_List()
+            root_tag["TileEntities"] = nbt.TAG_List()
             root_tag["Materials"] = nbt.TAG_String(self.materials.name)
 
-            root_tag[Blocks] = nbt.TAG_Byte_Array(zeros((shape[1], shape[2], shape[0]), uint8))
-            root_tag[Data] = nbt.TAG_Byte_Array(zeros((shape[1], shape[2], shape[0]), uint8))
+            self._Blocks = zeros((shape[1], shape[2], shape[0]), 'uint16')
+            root_tag["Data"] = nbt.TAG_Byte_Array(zeros((shape[1], shape[2], shape[0]), uint8))
+
+            root_tag["Biomes"] = nbt.TAG_Byte_Array(zeros((shape[2], shape[0]), uint8))
 
             self.root_tag = root_tag
 
-        self.dataIsPacked = True
+        self.root_tag["Data"].value &= 0xF  # discard high bits
+
+
+    def saveToFile(self, filename=None):
+        """ save to file named filename, or use self.filename.  XXX NOT THREAD SAFE AT ALL. """
+        if filename is None:
+            filename = self.filename
+        if filename is None:
+            raise IOError, u"Attempted to save an unnamed schematic in place"
+
+        self.Materials = self.materials.name
+
+        self.root_tag["Blocks"] = nbt.TAG_Byte_Array(self._Blocks.astype('uint8'))
+
+        add = self._Blocks >> 8
+        if add.any():
+            # WorldEdit AddBlocks compatibility.
+            # The first 4-bit value is stored in the high bits of the first byte.
+
+            # Increase odd size by one to align slices.
+            packed_add = zeros(add.size + (add.size & 1), 'uint8')
+            packed_add[:-(add.size & 1)] = add.ravel()
+
+            # Shift even bytes to the left
+            packed_add[::2] <<= 4
+
+            # Merge odd bytes into even bytes
+            packed_add[::2] |= packed_add[1::2]
+
+            # Save only the even bytes, now that they contain the odd bytes in their lower bits.
+            packed_add = packed_add[0::2]
+            self.root_tag["AddBlocks"] = nbt.TAG_Byte_Array(packed_add)
+
+        with open(filename, 'wb') as chunkfh:
+            self.root_tag.save(chunkfh)
+
+        del self.root_tag["Blocks"]
+        self.root_tag.pop("AddBlocks", None)
+
 
     def __str__(self):
         return u"MCSchematic(shape={0}, materials={2}, filename=\"{1}\")".format(self.size, self.filename or u"", self.Materials)
 
-    def compress(self):
-        # if self.root_tag is not None, then our compressed data must be stale and we need to recompress.
-
-        if self.root_tag is None:
-            return
-        else:
-            self.packChunkData()
-
-            buf = StringIO()
-            with closing(gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=2)) as gzipper:
-                self.root_tag.save(buf=gzipper)
-
-            self.compressedTag = buf.getvalue()
-
-        self.root_tag = None
-
-    def decompress(self):
-        """called when accessing attributes decorated with @decompress_first"""
-        if self.root_tag != None:
-            return
-        if self.compressedTag is None:
-            if self.root_tag is None:
-                self.load()
-            else:
-                return
-
-        with closing(gzip.GzipFile(fileobj=StringIO(self.compressedTag))) as gzipper:
-            try:
-                data = gzipper.read()
-                if data == None:
-                    return
-            except Exception, e:
-                # error( u"Error reading compressed data, assuming uncompressed: {0}".format(e) )
-                data = self.compressedTag
-
-        try:
-            self.root_tag = nbt.load(buf=data)
-        except Exception, e:
-            error(u"Malformed NBT data in schematic file: {0} ({1})".format(self.filename, e))
-            raise ChunkMalformed((e, self.filename), sys.exc_info()[2])
-
-        try:
-            self.shapeChunkData()
-        except KeyError, e:
-            error(u"Incorrect schematic format in file: {0} ({1})".format(self.filename, e))
-            raise ChunkMalformed((e, self.filename), sys.exc_info()[2])
-        pass
-
-        self.dataIsPacked = True
-
     # these refer to the blocks array instead of the file's height because rotation swaps the axes
     # this will have an impact later on when editing schematics instead of just importing/exporting
     @property
-    @decompress_first
     def Length(self):
         return self.Blocks.shape[1]
 
     @property
-    @decompress_first
     def Width(self):
         return self.Blocks.shape[0]
 
     @property
-    @decompress_first
     def Height(self):
         return self.Blocks.shape[2]
 
     @property
-    @decompress_first
-    @unpack_first
     def Blocks(self):
-        return self.root_tag[Blocks].value
-
-    @Blocks.setter
-    @decompress_first
-    @unpack_first
-    def Blocks(self, newval):
-        self.root_tag[Blocks].value = newval
+        return swapaxes(self._Blocks, 0, 2)
 
     @property
-    @decompress_first
-    @unpack_first
     def Data(self):
-        return self.root_tag[Data].value
-
-    @Data.setter
-    @decompress_first
-    @unpack_first
-    def Data(self, newval):
-        self.root_tag[Data].value = newval
+        return swapaxes(self.root_tag["Data"].value, 0, 2)
 
     @property
-    @decompress_first
     def Entities(self):
-        return self.root_tag[Entities]
+        return self.root_tag["Entities"]
 
     @property
-    @decompress_first
     def TileEntities(self):
-        return self.root_tag[TileEntities]
+        return self.root_tag["TileEntities"]
 
     @property
-    @decompress_first
     def Materials(self):
-        return self.root_tag[Materials].value
+        return self.root_tag["Materials"].value
 
     @Materials.setter
-    @decompress_first
     def Materials(self, val):
-        if not Materials in self.root_tag:
-            self.root_tag[Materials] = nbt.TAG_String()
-        self.root_tag[Materials].value = val
+        if "Materials" not in self.root_tag:
+            self.root_tag["Materials"] = nbt.TAG_String()
+        self.root_tag["Materials"].value = val
+
+    @property
+    def Biomes(self):
+        return swapaxes(self.root_tag["Biomes"].value, 0, 1)
 
     @classmethod
     def _isTagLevel(cls, root_tag):
         return "Schematic" == root_tag.name
 
-    def shapeChunkData(self):
-        w = self.root_tag[Width].value
-        l = self.root_tag[Length].value
-        h = self.root_tag[Height].value
-
-        self.root_tag[Blocks].value.shape = (h, l, w)
-        self.root_tag[Data].value.shape = (h, l, w)
-
-    def packUnpack(self):
-        self.root_tag[Blocks].value = swapaxes(self.root_tag[Blocks].value, 0, 2)  # yzx to xzy
-        self.root_tag[Data].value = swapaxes(self.root_tag[Data].value, 0, 2)  # yzx to xzy
-        if self.dataIsPacked:
-            self.root_tag[Data].value &= 0xF  # discard high bits
-
-    def packChunkData(self):
-        if not self.dataIsPacked:
-            self.packUnpack()
-            self.dataIsPacked = True
-
-    def unpackChunkData(self):
-        if self.dataIsPacked:
-            self.packUnpack()
-            self.dataIsPacked = False
-
     def _update_shape(self):
         root_tag = self.root_tag
         shape = self.Blocks.shape
-        root_tag[Height] = nbt.TAG_Short(shape[2])
-        root_tag[Length] = nbt.TAG_Short(shape[1])
-        root_tag[Width] = nbt.TAG_Short(shape[0])
+        root_tag["Height"] = nbt.TAG_Short(shape[2])
+        root_tag["Length"] = nbt.TAG_Short(shape[1])
+        root_tag["Width"] = nbt.TAG_Short(shape[0])
 
     def rotateLeft(self):
 
-        self.Blocks = swapaxes(self.Blocks, 1, 0)[:, ::-1, :]  # x=z; z=-x
-        self.Data = swapaxes(self.Data, 1, 0)[:, ::-1, :]  # x=z; z=-x
+        self._Blocks = swapaxes(self._Blocks, 1, 2)[:, ::-1, :]  # x=z; z=-x
+        self.root_tag["Data"].value   = swapaxes(self.root_tag["Data"].value, 1, 2)[:, ::-1, :]  # x=z; z=-x
         self._update_shape()
 
         blockrotation.RotateLeft(self.Blocks, self.Data)
 
-        info(u"Relocating entities...")
+        log.info(u"Relocating entities...")
         for entity in self.Entities:
             for p in "Pos", "Motion":
                 if p == "Pos":
@@ -264,7 +238,7 @@ class MCSchematic (EntityLevel):
                 entity[p][0].value = newX
                 entity[p][2].value = newZ
             entity["Rotation"][0].value -= 90.0
-            if entity["id"].value == "Painting":
+            if entity["id"].value in ("Painting", "ItemFrame"):
                 x, z = entity["TileX"].value, entity["TileZ"].value
                 newx = z
                 newz = self.Length - x - 1
@@ -284,24 +258,24 @@ class MCSchematic (EntityLevel):
 
     def roll(self):
         " xxx rotate stuff "
-        self.Blocks = swapaxes(self.Blocks, 2, 0)[:, :, ::-1]  # x=z; z=-x
-        self.Data = swapaxes(self.Data, 2, 0)[:, :, ::-1]
+        self._Blocks = swapaxes(self._Blocks, 2, 0)[:, :, ::-1]  # x=y; y=-x
+        self.root_tag["Data"].value = swapaxes(self.root_tag["Data"].value, 2, 0)[:, :, ::-1]
         self._update_shape()
 
     def flipVertical(self):
         " xxx delete stuff "
         blockrotation.FlipVertical(self.Blocks, self.Data)
-        self.Blocks = self.Blocks[:, :, ::-1]  # y=-y
-        self.Data = self.Data[:, :, ::-1]
+        self._Blocks = self._Blocks[::-1, :, :]  # y=-y
+        self.root_tag["Data"].value = self.root_tag["Data"].value[::-1, :, :]
 
     def flipNorthSouth(self):
         blockrotation.FlipNorthSouth(self.Blocks, self.Data)
-        self.Blocks = self.Blocks[::-1, :, :]  # x=-x
-        self.Data = self.Data[::-1, :, :]
+        self._Blocks = self._Blocks[:, :, ::-1]  # x=-x
+        self.root_tag["Data"].value = self.root_tag["Data"].value[:, :, ::-1]
 
         northSouthPaintingMap = [0, 3, 2, 1]
 
-        info(u"N/S Flip: Relocating entities...")
+        log.info(u"N/S Flip: Relocating entities...")
         for entity in self.Entities:
 
             entity["Pos"][0].value = self.Width - entity["Pos"][0].value
@@ -309,7 +283,7 @@ class MCSchematic (EntityLevel):
 
             entity["Rotation"][0].value -= 180.0
 
-            if entity["id"].value == "Painting":
+            if entity["id"].value in ("Painting", "ItemFrame"):
                 entity["TileX"].value = self.Width - entity["TileX"].value
                 entity["Dir"].value = northSouthPaintingMap[entity["Dir"].value]
 
@@ -320,14 +294,13 @@ class MCSchematic (EntityLevel):
             tileEntity["x"].value = self.Width - tileEntity["x"].value - 1
 
     def flipEastWest(self):
-        " xxx flip entities "
         blockrotation.FlipEastWest(self.Blocks, self.Data)
-        self.Blocks = self.Blocks[:, ::-1, :]  # z=-z
-        self.Data = self.Data[:, ::-1, :]
+        self._Blocks = self._Blocks[:, ::-1, :]  # z=-z
+        self.root_tag["Data"].value = self.root_tag["Data"].value[:, ::-1, :]
 
         eastWestPaintingMap = [2, 1, 0, 3]
 
-        info(u"E/W Flip: Relocating entities...")
+        log.info(u"E/W Flip: Relocating entities...")
         for entity in self.Entities:
 
             entity["Pos"][2].value = self.Length - entity["Pos"][2].value
@@ -335,39 +308,13 @@ class MCSchematic (EntityLevel):
 
             entity["Rotation"][0].value -= 180.0
 
-            if entity["id"].value == "Painting":
+            if entity["id"].value in ("Painting", "ItemFrame"):
                 entity["TileZ"].value = self.Length - entity["TileZ"].value
                 entity["Dir"].value = eastWestPaintingMap[entity["Dir"].value]
 
         for tileEntity in self.TileEntities:
             tileEntity["z"].value = self.Length - tileEntity["z"].value - 1
 
-    @decompress_first
-    def setShape(self, shape):
-        """shape is a tuple of (width, height, length).  sets the
-        schematic's properties and clears the block and data arrays"""
-
-        x, y, z = shape
-        shape = (x, z, y)
-
-        self.root_tag[Blocks].value = zeros(dtype='uint8', shape=shape)
-        self.root_tag[Data].value = zeros(dtype='uint8', shape=shape)
-        self.shapeChunkData()
-
-    def saveToFile(self, filename=None):
-        """ save to file named filename, or use self.filename.  XXX NOT THREAD SAFE AT ALL. """
-        if filename == None:
-            filename = self.filename
-        if filename == None:
-            warn(u"Attempted to save an unnamed schematic in place")
-            return  # you fool!
-
-        self.Materials = self.materials.name
-
-        self.compress()
-
-        with open(filename, 'wb') as chunkfh:
-            chunkfh.write(self.compressedTag)
 
     def setBlockDataAt(self, x, y, z, newdata):
         if x < 0 or y < 0 or z < 0:
@@ -384,7 +331,7 @@ class MCSchematic (EntityLevel):
         return self.Data[x, z, y]
 
     @classmethod
-    def chestWithItemID(self, itemID, count=64, damage=0):
+    def chestWithItemID(cls, itemID, count=64, damage=0):
         """ Creates a chest with a stack of 'itemID' in each slot.
         Optionally specify the count of items in each stack. Pass a negative
         value for damage to create unnaturally sturdy tools. """
@@ -402,6 +349,15 @@ class MCSchematic (EntityLevel):
         chest = INVEditChest(root_tag, "")
 
         return chest
+
+
+    def getChunk(self, cx, cz):
+        chunk = super(MCSchematic, self).getChunk(cx, cz)
+        if "Biomes" in self.root_tag:
+            x = cx << 4
+            z = cz << 4
+            chunk.Biomes = self.Biomes[x:x + 16, z:z + 16]
+        return chunk
 
 
 class INVEditChest(MCSchematic):
@@ -425,7 +381,7 @@ class INVEditChest(MCSchematic):
                 try:
                     root_tag = nbt.load(filename)
                 except IOError, e:
-                    info(u"Failed to load file {0}".format(e))
+                    log.info(u"Failed to load file {0}".format(e))
                     raise
         else:
             assert root_tag, "Must have either root_tag or filename"
@@ -441,7 +397,6 @@ class INVEditChest(MCSchematic):
         self.root_tag = root_tag
 
     @property
-    @decompress_first
     def TileEntities(self):
         chestTag = nbt.TAG_Compound()
         chestTag["id"] = nbt.TAG_String("Chest")
@@ -451,6 +406,73 @@ class INVEditChest(MCSchematic):
         chestTag["z"] = nbt.TAG_Int(0)
 
         return nbt.TAG_List([chestTag], name="TileEntities")
+
+
+class ZipSchematic (infiniteworld.MCInfdevOldLevel):
+    def __init__(self, filename, create=False):
+        self.zipfilename = filename
+
+        tempdir = tempfile.mktemp("schematic")
+        if create is False:
+            zf = zipfile.ZipFile(filename)
+            zf.extractall(tempdir)
+            zf.close()
+
+        super(ZipSchematic, self).__init__(tempdir, create)
+        atexit.register(shutil.rmtree, self.worldFolder.filename, True)
+
+
+        try:
+            schematicDat = nbt.load(self.worldFolder.getFilePath("schematic.dat"))
+
+            self.Width = schematicDat['Width'].value
+            self.Height = schematicDat['Height'].value
+            self.Length = schematicDat['Length'].value
+
+            if "Materials" in schematicDat:
+                self.materials = namedMaterials[schematicDat["Materials"].value]
+
+        except Exception, e:
+            print "Exception reading schematic.dat, skipping: {0!r}".format(e)
+            self.Width = 0
+            self.Length = 0
+
+    def __del__(self):
+        shutil.rmtree(self.worldFolder.filename, True)
+
+    def saveInPlace(self):
+        self.saveToFile(self.zipfilename)
+
+    def saveToFile(self, filename):
+        super(ZipSchematic, self).saveInPlace()
+        schematicDat = nbt.TAG_Compound()
+        schematicDat.name = "Mega Schematic"
+
+        schematicDat["Width"] = nbt.TAG_Int(self.size[0])
+        schematicDat["Height"] = nbt.TAG_Int(self.size[1])
+        schematicDat["Length"] = nbt.TAG_Int(self.size[2])
+        schematicDat["Materials"] = nbt.TAG_String(self.materials.name)
+
+        schematicDat.save(self.worldFolder.getFilePath("schematic.dat"))
+
+        basedir = self.worldFolder.filename
+        assert os.path.isdir(basedir)
+        with closing(zipfile.ZipFile(filename, "w", zipfile.ZIP_STORED)) as z:
+            for root, dirs, files in os.walk(basedir):
+                # NOTE: ignore empty directories
+                for fn in files:
+                    absfn = os.path.join(root, fn)
+                    zfn = absfn[len(basedir) + len(os.sep):]  # XXX: relative path
+                    z.write(absfn, zfn)
+
+    def getWorldBounds(self):
+        return BoundingBox((0, 0, 0), (self.Width, self.Height, self.Length))
+
+    @classmethod
+    def _isLevel(cls, filename):
+        return zipfile.is_zipfile(filename)
+
+
 
 
 def adjustExtractionParameters(self, box):
@@ -518,7 +540,7 @@ def extractSchematicFromIter(sourceLevel, box, entities=True):
     newbox, destPoint = p
 
     tempSchematic = MCSchematic(shape=box.size, mats=sourceLevel.materials)
-    for i in tempSchematic.copyBlocksFromIter(sourceLevel, newbox, destPoint, entities=entities):
+    for i in tempSchematic.copyBlocksFromIter(sourceLevel, newbox, destPoint, entities=entities, biomes=True):
         yield i
 
     yield tempSchematic
@@ -539,7 +561,8 @@ def extractZipSchematicFromIter(sourceLevel, box, zipfilename=None, entities=Tru
     # probably should only apply to alpha levels
 
     if zipfilename is None:
-        zipfilename = tempfile.mktemp("zipschematic")
+        zipfilename = tempfile.mktemp("zipschematic.zip")
+    atexit.register(shutil.rmtree, zipfilename, True)
 
     p = sourceLevel.adjustExtractionParameters(box)
     if p is None:
@@ -548,32 +571,15 @@ def extractZipSchematicFromIter(sourceLevel, box, zipfilename=None, entities=Tru
 
     destPoint = (0, 0, 0)
 
-    tempfolder = tempfile.mktemp("schematic")
-    try:
-        tempSchematic = MCInfdevOldLevel(tempfolder, create=True)
-        tempSchematic.materials = sourceLevel.materials
+    tempSchematic = ZipSchematic(zipfilename, create=True)
+    tempSchematic.materials = sourceLevel.materials
 
-        for i in tempSchematic.copyBlocksFromIter(sourceLevel, sourceBox, destPoint, entities=entities, create=True):
-            yield i
-        tempSchematic.saveInPlace()  # lights not needed for this format - crashes minecraft though
+    for i in tempSchematic.copyBlocksFromIter(sourceLevel, sourceBox, destPoint, entities=entities, create=True, biomes=True):
+        yield i
 
-        schematicDat = nbt.TAG_Compound()
-        schematicDat.name = "Mega Schematic"
-
-        schematicDat["Width"] = nbt.TAG_Int(sourceBox.size[0])
-        schematicDat["Height"] = nbt.TAG_Int(sourceBox.size[1])
-        schematicDat["Length"] = nbt.TAG_Int(sourceBox.size[2])
-        schematicDat["Materials"] = nbt.TAG_String(tempSchematic.materials.name)
-        schematicDat.save(os.path.join(tempfolder, "schematic.dat"))
-
-        zipdir(tempfolder, zipfilename)
-
-        import mclevel
-        yield mclevel.fromFile(zipfilename)
-    finally:
-        # We get here if the generator is GCed also
-        if os.path.exists(tempfolder):
-            shutil.rmtree(tempfolder, False)
+    tempSchematic.Width, tempSchematic.Height, tempSchematic.Length = sourceBox.size
+    tempSchematic.saveInPlace()  # lights not needed for this format - crashes minecraft though
+    yield tempSchematic
 
 MCLevel.extractZipSchematic = extractZipSchematicFrom
 MCLevel.extractZipSchematicIter = extractZipSchematicFromIter
@@ -584,30 +590,13 @@ def extractAnySchematic(level, box):
 
 
 def extractAnySchematicIter(level, box):
-    try:
-        if box.chunkCount > MCInfdevOldLevel.decompressedChunkLimit:
-            raise MemoryError
-
+    if box.chunkCount < infiniteworld.MCInfdevOldLevel.loadedChunkLimit:
         for i in level.extractSchematicIter(box):
             yield i
-    except MemoryError:
+    else:
         for i in level.extractZipSchematicIter(box):
             yield i
 
 MCLevel.extractAnySchematic = extractAnySchematic
 MCLevel.extractAnySchematicIter = extractAnySchematicIter
 
-from zipfile import ZipFile, ZIP_STORED
-
-
-def zipdir(basedir, archivename):
-    assert os.path.isdir(basedir)
-    with closing(ZipFile(archivename, "w", ZIP_STORED)) as z:
-        for root, dirs, files in os.walk(basedir):
-            # NOTE: ignore empty directories
-            for fn in files:
-                absfn = os.path.join(root, fn)
-                zfn = absfn[len(basedir) + len(os.sep):]  # XXX: relative path
-                z.write(absfn, zfn)
-
-from infiniteworld import MCInfdevOldLevel

@@ -1,9 +1,11 @@
 #!/usr/bin/env python
+import mclevelbase
 import mclevel
+import materials
 import infiniteworld
 import sys
 import os
-from box import BoundingBox
+from box import BoundingBox, Vector
 import numpy
 from numpy import zeros, bincount
 import logging
@@ -170,7 +172,7 @@ class mce(object):
         if command[0].lower() == "to":
             command.pop(0)
             sourcePoint2 = self.readIntPoint(command)
-            sourceSize = map(operator.sub, sourcePoint2, sourcePoint)
+            sourceSize = sourcePoint2 - sourcePoint
         else:
             sourceSize = self.readIntPoint(command, isPoint=False)
         if len([p for p in sourceSize if p <= 0]):
@@ -181,7 +183,7 @@ class mce(object):
     def readIntPoint(self, command, isPoint=True):
         point = self.readPoint(command, isPoint)
         point = map(int, map(floor, point))
-        return point
+        return Vector(*point)
 
     def readPoint(self, command, isPoint=True):
         self.prettySplit(command)
@@ -268,7 +270,7 @@ class mce(object):
         return blockInfo
 
     def readBlocksToCopy(self, command):
-        blocksToCopy = range(256)
+        blocksToCopy = range(materials.id_limit)
         while len(command):
             word = command.pop()
             if word == "noair":
@@ -437,12 +439,10 @@ class mce(object):
 
     def _analyze(self, command):
         """
-    analyze
+        analyze
 
-    Counts all of the block types in every chunk of the world.
-    Also updates the level's 'SizeOnDisk' field, correcting its size in the
-    world select menu.
-    """
+        Counts all of the block types in every chunk of the world.
+        """
         blockCounts = zeros((4096,), 'uint64')
         sizeOnDisk = 0
 
@@ -458,12 +458,10 @@ class mce(object):
             counts = bincount(btypes)
 
             blockCounts[:counts.shape[0]] += counts
-            sizeOnDisk += ch.compressedSize()
-            ch.unload()
             if i % 100 == 0:
                 logging.info("Chunk {0}...".format(i))
 
-        for blockID in range(256):
+        for blockID in range(materials.id_limit):
             block = self.level.materials.blockWithID(blockID, 0)
             if block.hasVariants:
                 for data in range(16):
@@ -481,8 +479,6 @@ class mce(object):
                     print "{idstring:9} {name:30}: {count:<10}".format(
                           idstring=idstring, name=self.level.materials.blockWithID(blockID, 0).name, count=count)
 
-        print "Size on disk: {0:.3}MB".format(sizeOnDisk / 1048576.0)
-        self.level.SizeOnDisk = sizeOnDisk
         self.needsSave = True
 
     def _export(self, command):
@@ -604,7 +600,15 @@ class mce(object):
         else:
             filename = self.level.displayName + ".signs"
 
-        outFile = codecs.open(filename, "w", encoding='utf-8')
+        # It appears that Minecraft interprets the sign text as UTF-8,
+        # so we should decode it as such too.
+        decodeSignText = codecs.getdecoder('utf-8')
+        # We happen to encode the output file in UTF-8 too, although
+        # we could use another UTF encoding.  The '-sig' encoding puts
+        # a signature at the start of the output file that tools such
+        # as Microsoft Windows Notepad and Emacs understand to mean
+        # the file has UTF-8 encoding.
+        outFile = codecs.open(filename, "w", encoding='utf-8-sig')
 
         print "Dumping signs..."
         signCount = 0
@@ -612,7 +616,7 @@ class mce(object):
         for i, cPos in enumerate(self.level.allChunks):
             try:
                 chunk = self.level.getChunk(*cPos)
-            except mclevel.ChunkMalformed:
+            except mclevelbase.ChunkMalformed:
                 continue
 
             for tileEntity in chunk.TileEntities:
@@ -621,12 +625,12 @@ class mce(object):
 
                     outFile.write(str(map(lambda x: tileEntity[x].value, "xyz")) + "\n")
                     for i in range(4):
-                        outFile.write(tileEntity["Text{0}".format(i + 1)].value + u"\n")
+                        signText = tileEntity["Text{0}".format(i + 1)].value
+                        outFile.write(decodeSignText(signText)[0] + u"\n")
 
             if i % 100 == 0:
                 print "Chunk {0}...".format(i)
 
-            chunk.unload()
 
         print "Dumped {0} signs to {1}".format(signCount, filename)
 
@@ -675,7 +679,7 @@ class mce(object):
         if len(command):
             if len(command) > 1:
                 rx, rz = map(int, command[:2])
-                level.allChunks
+                print "Calling allChunks to preload region files: %d chunks" % len(level.allChunks)
                 rf = level.regionFiles.get((rx, rz))
                 if rf is None:
                     print "Region {rx},{rz} not found.".format(**locals())
@@ -701,7 +705,7 @@ class mce(object):
 
             else:
                 if command[0] == "free":
-                    level.allChunks
+                    print "Calling allChunks to preload region files: %d chunks" % len(level.allChunks)
                     for (rx, rz), rf in level.regionFiles.iteritems():
 
                         runs = getFreeSectors(rf)
@@ -710,7 +714,7 @@ class mce(object):
                             printFreeSectors(runs)
 
         else:
-            level.allChunks
+            print "Calling allChunks to preload region files: %d chunks" % len(level.allChunks)
             coords = (r for r in level.regionFiles)
             for i, (rx, rz) in enumerate(coords):
                 print "({rx:6}, {rz:6}): {count}, ".format(count=level.regionFiles[rx, rz].chunkCount),
@@ -770,7 +774,7 @@ class mce(object):
         for i, cPos in enumerate(self.level.allChunks):
             try:
                 chunk = self.level.getChunk(*cPos)
-            except mclevel.ChunkMalformed:
+            except mclevelbase.ChunkMalformed:
                 continue
 
             for tileEntity in chunk.TileEntities:
@@ -797,7 +801,6 @@ class mce(object):
             if i % 100 == 0:
                 print "Chunk {0}...".format(i)
 
-            chunk.unload()
 
         print "Dumped {0} chests to {1}".format(chestCount, filename)
 
@@ -829,9 +832,9 @@ class mce(object):
         ENT_MATCHTYPE_NONPAINTING = 2
 
         def match(entityID, matchType, matchWords):
-            if(ENT_MATCHTYPE_ANY == matchType):
+            if ENT_MATCHTYPE_ANY == matchType:
                 return entityID.lower() in matchWords
-            elif(ENT_MATCHTYPE_EXCEPT == matchType):
+            elif ENT_MATCHTYPE_EXCEPT == matchType:
                 return not (entityID.lower() in matchWords)
             else:
                 # ENT_MATCHTYPE_EXCEPT == matchType
@@ -871,9 +874,6 @@ class mce(object):
             if entitiesRemoved:
                 chunk.chunkChanged(False)
 
-            chunk.compress()
-            chunk.save()
-            chunk.unload()
 
         if len(removedEntities) == 0:
             print "No entities to remove."
@@ -1004,7 +1004,7 @@ class mce(object):
     Also see removeEntities
     """
         box = self.level.bounds
-        box.miny = 32
+        box = BoundingBox(box.origin + (0, 32, 0), box.size - (0, 32, 0))
         if len(command):
             try:
                 box.miny = int(command[0])
@@ -1214,7 +1214,7 @@ class mce(object):
                     # the quick lighting from chunkChanged has already lit this simple terrain completely
                     c.needsLighting = False
 
-                    logging.info("%s Just did chunk %d,%d" % (datetime.datetime.now().strftime("[%H:%M:%S]"), cx, cz))
+                logging.info("%s Just did chunk %d,%d" % (datetime.datetime.now().strftime("[%H:%M:%S]"), cx, cz))
 
             logging.info("Done with mapping!")
             self.needsSave = True
@@ -1304,7 +1304,7 @@ class mce(object):
 
             elif command[0].lower() in ("hell", "nether", "slip"):
                 dimNo = -1
-            elif command[0].lower() in ("end"):
+            elif command[0].lower() == "end":
                 dimNo = 1
             else:
                 dimNo = self.readInt(command)

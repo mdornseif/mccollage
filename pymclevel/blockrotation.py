@@ -1,3 +1,4 @@
+import materials
 from materials import alphaMaterials
 from numpy import arange, zeros
 
@@ -7,7 +8,7 @@ def genericVerticalFlip(cls):
     if hasattr(cls, "Up") and hasattr(cls, "Down"):
         rotation[cls.Up] = cls.Down
         rotation[cls.Down] = cls.Up
-        
+
     if hasattr(cls, "TopNorth") and hasattr(cls, "TopWest") and hasattr(cls, "TopSouth") and hasattr(cls, "TopEast"):
         rotation[cls.North] = cls.TopNorth
         rotation[cls.West] = cls.TopWest
@@ -32,7 +33,7 @@ def genericRotation(cls):
         rotation[cls.TopWest] = cls.TopSouth
         rotation[cls.TopSouth] = cls.TopEast
         rotation[cls.TopEast] = cls.TopNorth
-    
+
     return rotation
 
 
@@ -43,7 +44,7 @@ def genericEastWestFlip(cls):
     if hasattr(cls, "TopWest") and hasattr(cls, "TopEast"):
         rotation[cls.TopWest] = cls.TopEast
         rotation[cls.TopEast] = cls.TopWest
-    
+
     return rotation
 
 
@@ -54,7 +55,7 @@ def genericNorthSouthFlip(cls):
     if hasattr(cls, "TopNorth") and hasattr(cls, "TopSouth"):
         rotation[cls.TopSouth] = cls.TopNorth
         rotation[cls.TopNorth] = cls.TopSouth
-    
+
     return rotation
 
 rotationClasses = []
@@ -123,7 +124,7 @@ class HalfSlab:
     TopCobblestoneSlab = 11
     TopBrickSlab = 12
     TopStoneBrickSlab = 13
-    
+
 HalfSlab.flipVertical =  arange(16, dtype='uint8')
 HalfSlab.flipVertical[HalfSlab.StoneSlab] = HalfSlab.TopStoneSlab
 HalfSlab.flipVertical[HalfSlab.SandstoneSlab] = HalfSlab.TopSandstoneSlab
@@ -432,20 +433,20 @@ class Vines:
     flipEastWest = arange(16, dtype='uint8')
     flipNorthSouth = arange(16, dtype='uint8')
 
-"""
-Value     Description     Textures
-0     Fleshy piece     Pores on all sides
-1     Corner piece     Cap texture on top, directions 1 (cloud direction) and 2 (sunrise)
-2     Side piece     Cap texture on top and direction 2 (sunrise)
-3     Corner piece     Cap texture on top, directions 2 (sunrise) and 3 (cloud origin)
-4     Side piece     Cap texture on top and direction 1 (cloud direction)
-5     Top piece     Cap texture on top
-6     Side piece     Cap texture on top and direction 3 (cloud origin)
-7     Corner piece     Cap texture on top, directions 0 (sunset) and 1 (cloud direction)
-8     Side piece     Cap texture on top and direction 0 (sunset)
-9     Corner piece     Cap texture on top, directions 3 (cloud origin) and 0 (sunset)
-10     Stem piece     Stem texture on all four sides, pores on top and bottom
-"""
+
+#Mushroom types:
+#Value     Description     Textures
+#0     Fleshy piece     Pores on all sides
+#1     Corner piece     Cap texture on top, directions 1 (cloud direction) and 2 (sunrise)
+#2     Side piece     Cap texture on top and direction 2 (sunrise)
+#3     Corner piece     Cap texture on top, directions 2 (sunrise) and 3 (cloud origin)
+#4     Side piece     Cap texture on top and direction 1 (cloud direction)
+#5     Top piece     Cap texture on top
+#6     Side piece     Cap texture on top and direction 3 (cloud origin)
+#7     Corner piece     Cap texture on top, directions 0 (sunset) and 1 (cloud direction)
+#8     Side piece     Cap texture on top and direction 0 (sunset)
+#9     Corner piece     Cap texture on top, directions 3 (cloud origin) and 0 (sunset)
+#10     Stem piece     Stem texture on all four sides, pores on top and bottom
 
 
 class HugeMushroom:
@@ -474,9 +475,9 @@ rotationClasses.append(Vines)
 
 
 def masterRotationTable(attrname):
-    # compute a 256x16 table mapping each possible blocktype/data combination to
+    # compute a materials.id_limitx16 table mapping each possible blocktype/data combination to
     # the resulting data when the block is rotated
-    table = zeros((256, 16), dtype='uint8')
+    table = zeros((materials.id_limit, 16), dtype='uint8')
     table[:] = arange(16, dtype='uint8')
     for cls in rotationClasses:
         if hasattr(cls, attrname):

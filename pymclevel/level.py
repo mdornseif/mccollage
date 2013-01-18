@@ -18,8 +18,6 @@ from numpy import argmax, swapaxes, zeros, zeros_like
 import os.path
 
 log = getLogger(__name__)
-warn, error, info, debug = log.warn, log.error, log.info, log.debug
-
 
 def computeChunkHeightMap(materials, blocks, HeightMap=None):
     """Computes the HeightMap array for a chunk, which stores the lowest
@@ -50,7 +48,7 @@ def extractHeights(array):
     # from each column.
 
     w, h = array.shape[:2]
-    heightMap = zeros((w, h), 'uint16')
+    heightMap = zeros((w, h), 'int16')
 
     heights = argmax((array > 0)[..., ::-1], 2)
     heights = array.shape[2] - heights
@@ -70,7 +68,7 @@ def getSlices(box, height):
 
     this returns an iterator, which yields 3-tuples containing:
     +  a pair of chunk coordinates (cx, cz),
-    +  a x,z,y triplet of slices that can be used to index the InfdevChunk's data arrays,
+    +  a x,z,y triplet of slices that can be used to index the AnvilChunk's data arrays,
     +  a x,y,z triplet representing the relative location of this subslice within the requested world slice.
 
     Note the different order of the coordinates between the 'slices' triplet
@@ -121,11 +119,6 @@ class MCLevel(object):
     including a common copyEntitiesFrom built on class-specific routines, and
     a dummy getChunk/allChunks for the finite levels.
 
-    MCLevel also provides compress and decompress methods that are used to load
-    NBT format levels, and expects subclasses to override shapeChunkData to
-    assign a shape to the Blocks and other arrays. The resulting arrays after
-    reshape must be indexed [x,z,y]
-
     MCLevel subclasses must have Width, Length, and Height attributes.  The first two are always zero for infinite levels.
     Subclasses must also have Blocks, and optionally Data and BlockLight.
     """
@@ -136,7 +129,6 @@ class MCLevel(object):
     materials = materials.classicMaterials
     isInfinite = False
 
-    compressedTag = None
     root_tag = None
 
     Height = None
@@ -193,13 +185,6 @@ class MCLevel(object):
     def close(self):
         pass
 
-    # --- Compression ---
-    def compress(self):
-        pass
-
-    def decompress(self):
-        pass
-
     # --- Entity Methods ---
     def addEntity(self, entityTag):
         pass
@@ -219,22 +204,11 @@ class MCLevel(object):
     def getTileEntitiesInBox(self, box):
         return []
 
-    def copyEntitiesFromIter(self, *args, **kw):
-        yield
-
     def removeEntitiesInBox(self, box):
         pass
 
     def removeTileEntitiesInBox(self, box):
         pass
-
-    # --- Chunked Format Emulation ---
-    def compressChunk(self, cx, cz):
-        pass
-
-    @property
-    def loadedChunks(self):
-        return itertools.product(xrange(0, self.Width + 15 >> 4), xrange(0, self.Length + 15 >> 4))
 
     @property
     def chunkCount(self):
@@ -244,11 +218,11 @@ class MCLevel(object):
     def allChunks(self):
         """Returns a synthetic list of chunk positions (xPos, zPos), to fake
         being a chunked level format."""
-        return self.loadedChunks
+        return itertools.product(xrange(0, self.Width + 15 >> 4), xrange(0, self.Length + 15 >> 4))
 
     def getChunks(self, chunks=None):
         """ pass a list of chunk coordinate tuples to get an iterator yielding
-        InfdevChunks. pass nothing for an iterator of every chunk in the level.
+        AnvilChunks. pass nothing for an iterator of every chunk in the level.
         the chunks are automatically loaded."""
         if chunks is None:
             chunks = self.allChunks
@@ -256,7 +230,7 @@ class MCLevel(object):
 
     def _getFakeChunkEntities(self, cx, cz):
         """Returns Entities, TileEntities"""
-        return [], []
+        return nbt.TAG_List(), nbt.TAG_List()
 
     def getChunk(self, cx, cz):
         """Synthesize a FakeChunk object representing the chunk at the given
@@ -299,7 +273,7 @@ class MCLevel(object):
 
     def _getSlices(self, box):
         if box == self.bounds:
-            info("All chunks selected! Selecting %s chunks instead of %s", self.chunkCount, box.chunkCount)
+            log.info("All chunks selected! Selecting %s chunks instead of %s", self.chunkCount, box.chunkCount)
             y = box.miny
             slices = slice(0, 16), slice(0, 16), slice(0, box.maxy)
 
@@ -321,23 +295,12 @@ class MCLevel(object):
                 if self.containsChunk(*cPos))
 
     def containsPoint(self, x, y, z):
-        return (x >= 0 and x < self.Width and
-                y >= 0 and y < self.Height and
-                z >= 0 and z < self.Length)
+        return (x, y, z) in self.bounds
 
     def containsChunk(self, cx, cz):
-        # w+15 to allow non 16 aligned schematics
-        return (cx >= 0 and cx < (self.Width + 15 >> 4) and
-                cz >= 0 and cz < (self.Length + 15 >> 4))
-
-    def chunkIsLoaded(self, cx, cz):
-        return self.containsChunk(cx, cz)
-
-    def chunkIsCompressed(self, cx, cz):
-        return False
-
-    def chunkIsDirty(self, cx, cz):
-        return True
+        bounds = self.bounds
+        return ((bounds.mincx <= cx < bounds.maxcx) and
+                (bounds.mincz <= cz < bounds.maxcz))
 
     def fakeBlocksForChunk(self, cx, cz):
         # return a 16x16xH block array for rendering.  Alpha levels can
@@ -380,64 +343,18 @@ class MCLevel(object):
         return 15
 
     def blockAt(self, x, y, z):
-        if x < 0 or y < 0 or z < 0:
-            return 0
-        if x >= self.Width or y >= self.Height or z >= self.Length:
+        if (x, y, z) not in self.bounds:
             return 0
         return self.Blocks[x, z, y]
 
     def setBlockAt(self, x, y, z, blockID):
-        if x < 0 or y < 0 or z < 0:
-            return 0
-        if x >= self.Width or y >= self.Height or z >= self.Length:
+        if (x, y, z) not in self.bounds:
             return 0
         self.Blocks[x, z, y] = blockID
 
     # --- Fill and Replace ---
-    def blockReplaceTable(self, blocksToReplace):
-        blocktable = zeros((256, 16), dtype='bool')
-        for b in blocksToReplace:
-            if b.hasVariants:
-                blocktable[b.ID, b.blockData] = True
-            else:
-                blocktable[b.ID] = True
 
-        return blocktable
-
-    def fillBlocksIter(self, box, blockInfo, blocksToReplace=[]):
-        self.fillBlocks(box, blockInfo, blocksToReplace)
-        yield
-
-    def fillBlocks(self, box, blockInfo, blocksToReplace=[]):
-
-        if box is None:
-            box = self.bounds
-        else:
-            box = box.intersect(self.bounds)
-
-        info(u"Filling blocks in {0} with {1}, replacing{2}".format(box, blockInfo, blocksToReplace))
-
-        slices = map(slice, box.origin, box.maximum)
-
-        blocks = self.Blocks[slices[0], slices[2], slices[1]]
-        if len(blocksToReplace):
-            blocktable = self.blockReplaceTable(blocksToReplace)
-            shouldRetainData = (self.materials == materials.alphaMaterials) and all([blockrotation.SameRotationType(blockInfo, b) for b in blocksToReplace])
-
-            if hasattr(self, "Data") and shouldRetainData:
-                data = self.Data[slices[0], slices[2], slices[1]]
-                mask = blocktable[blocks, data]
-
-                data[mask] = blockInfo.blockData
-            else:
-                mask = blocktable[blocks, 0]
-
-            blocks[mask] = blockInfo.ID
-
-        else:
-            blocks[:] = blockInfo.ID
-            if hasattr(self, "Data"):
-                self.Data[slices[0], slices[2], slices[1]] = blockInfo.blockData
+    from block_fill import fillBlocks, fillBlocksIter
 
     # --- Transformations ---
     def rotateLeft(self):
@@ -462,134 +379,8 @@ class MCLevel(object):
 
     # --- Copying ---
 
-    def copyBlocksFromFiniteToFinite(self, sourceLevel, sourceBox, destinationPoint, blocksToCopy):
-        # assume destinationPoint is entirely within this level, and the size of sourceBox fits entirely within it.
-        sourcex, sourcey, sourcez = map(slice, sourceBox.origin, sourceBox.maximum)
-        destCorner2 = map(lambda a, b: a + b, sourceBox.size, destinationPoint)
-        destx, desty, destz = map(slice, destinationPoint, destCorner2)
+    from block_copy import copyBlocksFrom, copyBlocksFromIter
 
-        sourceData = None
-        if hasattr(sourceLevel, 'Data'):
-            sourceData = sourceLevel.Data[sourcex, sourcez, sourcey]
-        convertedSourceBlocks, convertedSourceData = self.convertBlocksFromLevel(sourceLevel, sourceLevel.Blocks[sourcex, sourcez, sourcey], sourceData)
-
-        blocks = self.Blocks[destx, destz, desty]
-
-        mask = slice(None, None)
-
-        if not (blocksToCopy is None):
-            typemask = zeros(256, dtype='bool')
-            typemask[blocksToCopy] = True
-            mask = typemask[convertedSourceBlocks]
-
-        blocks[mask] = convertedSourceBlocks[mask]
-        if hasattr(self, 'Data') and hasattr(sourceLevel, 'Data'):
-            data = self.Data[destx, destz, desty]
-            data[mask] = convertedSourceData[mask]
-
-    def copyBlocksFromInfinite(self, sourceLevel, sourceBox, destinationPoint, blocksToCopy):
-        return exhaust(self.copyBlocksFromInfinite(sourceLevel, sourceBox, destinationPoint, blocksToCopy))
-
-    def copyBlocksFromInfiniteIter(self, sourceLevel, sourceBox, destinationPoint, blocksToCopy):
-        if blocksToCopy is not None:
-            typemask = zeros(256, dtype='bool')
-            typemask[blocksToCopy] = True
-
-        for i, (chunk, slices, point) in enumerate(sourceLevel.getChunkSlices(sourceBox)):
-            point = map(lambda a, b: a + b, point, destinationPoint)
-            point = point[0], point[2], point[1]
-            mask = slice(None, None)
-
-            convertedSourceBlocks, convertedSourceData = self.convertBlocksFromLevel(sourceLevel, chunk.Blocks[slices], chunk.Data[slices])
-
-            destSlices = [slice(p, p + s.stop - s.start) for p, s in zip(point, slices)]
-
-            blocks = self.Blocks[destSlices]
-
-            if blocksToCopy is not None:
-                mask = typemask[convertedSourceBlocks]
-
-            blocks[mask] = convertedSourceBlocks[mask]
-
-            if hasattr(self, 'Data'):
-                data = self.Data[destSlices]
-                data[mask] = convertedSourceData[mask]
-
-            yield i
-
-    def adjustCopyParameters(self, sourceLevel, sourceBox, destinationPoint):
-
-        # if the destination box is outside the level, it and the source corners are moved inward to fit.
-        # ValueError is raised if the source corners are outside sourceLevel
-        (x, y, z) = map(int, destinationPoint)
-
-        sourceBox = BoundingBox(sourceBox.origin, sourceBox.size)
-
-        (lx, ly, lz) = sourceBox.size
-        debug(u"Asked to copy {0} blocks \n\tfrom {1} in {3}\n\tto {2} in {4}" .format(ly * lz * lx, sourceBox, destinationPoint, sourceLevel, self))
-
-        # clip the source ranges to this level's edges.  move the destination point as needed.
-        # xxx abstract this
-        if y < 0:
-            sourceBox.origin[1] -= y
-            sourceBox.size[1] += y
-            y = 0
-        if y + sourceBox.size[1] > self.Height:
-            sourceBox.size[1] -= y + sourceBox.size[1] - self.Height
-            y = self.Height - sourceBox.size[1]
-
-        # for infinite levels, don't clip along those dimensions because the
-        # infinite copy func will just skip missing chunks
-        if self.Width != 0:
-            if x < 0:
-                sourceBox.origin[0] -= x
-                sourceBox.size[0] += x
-                x = 0
-            if x + sourceBox.size[0] > self.Width:
-                sourceBox.size[0] -= x + sourceBox.size[0] - self.Width
-                # x=self.Width-sourceBox.size[0]
-
-        if self.Length != 0:
-            if z < 0:
-                sourceBox.origin[2] -= z
-                sourceBox.size[2] += z
-                z = 0
-            if z + sourceBox.size[2] > self.Length:
-                sourceBox.size[2] -= z + sourceBox.size[2] - self.Length
-                # z=self.Length-sourceBox.size[2]
-
-        destinationPoint = (x, y, z)
-
-        return sourceBox, destinationPoint
-
-    def copyBlocksFrom(self, sourceLevel, sourceBox, destinationPoint, blocksToCopy=None, entities=True, create=False):
-        return exhaust(self.copyBlocksFromIter(sourceLevel, sourceBox, destinationPoint, blocksToCopy, entities, create))
-
-    def copyBlocksFromIter(self, sourceLevel, sourceBox, destinationPoint, blocksToCopy=None, entities=True, create=False):
-        if (not sourceLevel.isInfinite) and not(
-               sourceLevel.containsPoint(*sourceBox.origin) and
-               sourceLevel.containsPoint(*map(lambda x: x - 1, sourceBox.maximum))):
-            raise ValueError("{0} cannot provide blocks between {1}".format(sourceLevel, sourceBox))
-
-        sourceBox, destinationPoint = self.adjustCopyParameters(sourceLevel, sourceBox, destinationPoint)
-        yield
-
-        if min(sourceBox.size) <= 0:
-            print "Empty source box, aborting"
-            return
-
-        info(u"Copying {0} blocks from {1} to {2}" .format(sourceBox.volume, sourceBox, destinationPoint))
-
-        if not sourceLevel.isInfinite:
-            self.copyBlocksFromFiniteToFinite(sourceLevel, sourceBox, destinationPoint, blocksToCopy)
-        else:
-            for i in self.copyBlocksFromInfiniteIter(sourceLevel, sourceBox, destinationPoint, blocksToCopy):
-                yield i
-        for i in self.copyEntitiesFromIter(sourceLevel, sourceBox, destinationPoint, entities):
-            yield i
-
-    def convertBlocksFromLevel(self, sourceLevel, blocks, blockData):
-        return materials.convertBlocks(self.materials, sourceLevel.materials, blocks, blockData)
 
     def saveInPlace(self):
         self.saveToFile(self.filename)
@@ -630,78 +421,6 @@ class MCLevel(object):
 class EntityLevel(MCLevel):
     """Abstract subclass of MCLevel that adds default entity behavior"""
 
-    def copyEntitiesFromInfiniteIter(self, sourceLevel, sourceBox, destinationPoint, entities):
-        chunkCount = sourceBox.chunkCount
-        i = 0
-        copyOffset = map(lambda x, y: x - y, destinationPoint, sourceBox.origin)
-        e = t = 0
-
-        for (chunk, slices, point) in sourceLevel.getChunkSlices(sourceBox):
-            yield (i, chunkCount)
-            i += 1
-
-            if entities:
-                e += len(chunk.Entities)
-                for entityTag in chunk.Entities:
-                    x, y, z = Entity.pos(entityTag)
-                    if (x, y, z) not in sourceBox:
-                        continue
-
-                    eTag = Entity.copyWithOffset(entityTag, copyOffset)
-
-                    self.addEntity(eTag)
-
-            t += len(chunk.TileEntities)
-            for tileEntityTag in chunk.TileEntities:
-                x, y, z = TileEntity.pos(tileEntityTag)
-                if (x, y, z) not in sourceBox:
-                    continue
-
-                eTag = TileEntity.copyWithOffset(tileEntityTag, copyOffset)
-
-                self.addTileEntity(eTag)
-
-        info("Copied {0} entities, {1} tile entities".format(e, t))
-
-    def copyEntitiesFromIter(self, sourceLevel, sourceBox, destinationPoint, entities=True):
-        # assume coords have already been adjusted by copyBlocks
-        # if not self.hasEntities or not sourceLevel.hasEntities:
-        #    return
-        sourcePoint0 = sourceBox.origin
-
-        if sourceLevel.isInfinite:
-            for i in self.copyEntitiesFromInfiniteIter(sourceLevel, sourceBox, destinationPoint, entities):
-                yield i
-        else:
-            entsCopied = 0
-            tileEntsCopied = 0
-            copyOffset = map(lambda x, y: x - y, destinationPoint, sourcePoint0)
-            if entities:
-                for entity in sourceLevel.getEntitiesInBox(sourceBox):
-                    eTag = Entity.copyWithOffset(entity, copyOffset)
-
-                    self.addEntity(eTag)
-                    entsCopied += 1
-
-            i = 0
-            for entity in sourceLevel.getTileEntitiesInBox(sourceBox):
-                i += 1
-                if i % 100 == 0:
-                    yield
-
-                if not 'x' in entity:
-                    continue
-                eTag = TileEntity.copyWithOffset(entity, copyOffset)
-
-                try:
-                    self.addTileEntity(eTag)
-                    tileEntsCopied += 1
-                except ChunkNotPresent:
-                    pass
-
-            yield
-            info(u"Copied {0} entities, {1} tile entities".format(entsCopied, tileEntsCopied))
-
     def getEntitiesInBox(self, box):
         """Returns a list of references to entities in this chunk, whose positions are within box"""
         return [ent for ent in self.Entities if Entity.pos(ent) in box]
@@ -719,7 +438,7 @@ class EntityLevel(MCLevel):
             newEnts.append(ent)
 
         entsRemoved = len(self.Entities) - len(newEnts)
-        debug("Removed {0} entities".format(entsRemoved))
+        log.debug("Removed {0} entities".format(entsRemoved))
 
         self.Entities.value[:] = newEnts
 
@@ -736,7 +455,7 @@ class EntityLevel(MCLevel):
             newEnts.append(ent)
 
         entsRemoved = len(self.TileEntities) - len(newEnts)
-        debug("Removed {0} tile entities".format(entsRemoved))
+        log.debug("Removed {0} tile entities".format(entsRemoved))
 
         self.TileEntities.value[:] = newEnts
 
@@ -758,7 +477,7 @@ class EntityLevel(MCLevel):
                 entities.append(entityTag)
 
         if len(entities) > 1:
-            info("Multiple tile entities found: {0}".format(entities))
+            log.info("Multiple tile entities found: {0}".format(entities))
         if len(entities) == 0:
             return None
 
@@ -782,7 +501,7 @@ class EntityLevel(MCLevel):
         """distribute entities into sublists based on fake chunk position
         _fakeEntities keys are (cx, cz) and values are (Entities, TileEntities)"""
         if self._fakeEntities is None:
-            self._fakeEntities = defaultdict(lambda: ([], []))
+            self._fakeEntities = defaultdict(lambda: (nbt.TAG_List(), nbt.TAG_List()))
             for i, e in enumerate((self.Entities, self.TileEntities)):
                 for ent in e:
                     x, y, z = [Entity, TileEntity][i].pos(ent)
@@ -796,13 +515,21 @@ class EntityLevel(MCLevel):
 class ChunkBase(EntityLevel):
     dirty = False
     needsLighting = False
+
+    chunkPosition = NotImplemented
     Blocks = Data = SkyLight = BlockLight = HeightMap = NotImplemented  # override these!
 
-    def load(self):
-        pass
+    Width = Length = 16
 
-    def compress(self):
-        pass
+    @property
+    def Height(self):
+        return self.world.Height
+
+    @property
+    def bounds(self):
+        cx, cz = self.chunkPosition
+        return BoundingBox((cx << 4, 0, cz << 4), self.size)
+
 
     def chunkChanged(self, needsLighting=True):
         self.dirty = True
@@ -811,6 +538,23 @@ class ChunkBase(EntityLevel):
     @property
     def materials(self):
         return self.world.materials
+
+
+    def getChunkSlicesForBox(self, box):
+        """
+         Given a BoundingBox enclosing part of the world, return a smaller box enclosing the part of this chunk
+         intersecting the given box, and a tuple of slices that can be used to select the corresponding parts
+         of this chunk's block and data arrays.
+        """
+        bounds = self.bounds
+        localBox = box.intersect(bounds)
+
+        slices = (
+            slice(localBox.minx - bounds.minx, localBox.maxx - bounds.minx),
+            slice(localBox.minz - bounds.minz, localBox.maxz - bounds.minz),
+            slice(localBox.miny - bounds.miny, localBox.maxy - bounds.miny),
+        )
+        return localBox, slices
 
 
 class FakeChunk(ChunkBase):
@@ -824,9 +568,6 @@ class FakeChunk(ChunkBase):
 
 
 class LightedChunk(ChunkBase):
-    def isLoaded(self):
-        return True
-
     def generateHeightMap(self):
         computeChunkHeightMap(self.materials, self.Blocks, self.HeightMap)
 
@@ -834,9 +575,6 @@ class LightedChunk(ChunkBase):
         """ You are required to call this function after you are done modifying
         the chunk. Pass False for calcLighting if you know your changes will
         not change any lights."""
-
-        if not self.isLoaded():
-            return
 
         self.dirty = True
         self.needsLighting = calcLighting or self.needsLighting
